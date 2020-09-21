@@ -11,6 +11,7 @@ import { TerminalEscape, TE_Style } from './terminalEscape';
 import * as fs from 'fs';
 import { threadId } from 'worker_threads';
 import { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } from 'constants';
+import { resolve } from 'path';
 
 
 export interface FpcTaskDefinition extends vscode.TaskDefinition {
@@ -60,18 +61,19 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 		//(task.presentationOptions as any)["revealProblems"]="onProblem";
 
 		//task.problemMatchers.push('$fpc');
+	
+		
 		return task;
 	}
 
 }
 
-class FpcTask extends vscode.Task {
+class FpcTask extends vscode.Task  {
 	constructor(workspaceRoot: string, name: string, file: string, buildOptionString?: string, taskDefinition?: FpcTaskDefinition) {
 
 		if (taskDefinition?.buildOption) {
 			let opt: CompileOption = new CompileOption(taskDefinition.file, taskDefinition.file);
 			opt.buildOption = taskDefinition.buildOption;
-
 			buildOptionString = opt.toOptionString();
 		}
 		if (!buildOptionString) {
@@ -97,35 +99,39 @@ class FpcTask extends vscode.Task {
 
 		fpcpath = path.join(fpcpath ? fpcpath! : '', "fpc");
 
-		let terminal = FpcBuildTaskTerminal.getInstance(workspaceRoot, fpcpath);
-		terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
-		
+	
+	
 		super(
 			taskDefinition,
 			vscode.TaskScope.Workspace,
 			`${name}`,
 			FpcTaskProvider.FpcTaskType,
-			//new vscode.ShellExecution(`${fpcpath} ${taskDefinition.file} ${buildOptionString}`, option)
+			//new vscode.ShellExecution(`${fpcpath} ${taskDefinition.file} ${buildOptionString}`)
 			new FpcCustomExecution(async (): Promise<vscode.Pseudoterminal> => {
 				// 	// When the task is executed, this callback will run. Here, we setup for running the task.
-				return terminal;
-			}) as vscode.CustomExecution
+				// let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
+				//terminal.args =  `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+				let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
+				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+				return  terminal;
+				
+			}) 
 		);
-
 	}
+
 
 }
 
 class FpcCustomExecution extends vscode.CustomExecution {
 
 }
-
 var diagCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('fpc');
+
 class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitStatus {
 	private writeEmitter = new vscode.EventEmitter<string>();
 	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-	private closeEmitter = new vscode.EventEmitter<void>();
-	onDidClose: vscode.Event<void> = this.closeEmitter.event;
+	private closeEmitter = new vscode.EventEmitter<number>();
+	onDidClose: vscode.Event<number> = this.closeEmitter.event;
 
 	private process?: ChildProcess.ChildProcess;
 	protected buffer: string = "";
@@ -134,49 +140,38 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	private diagMaps: Map<string, vscode.Diagnostic[]>;
 	public args: string[] = [];
 
-	private lastTerminalName?:string;
 	constructor(private workspaceRoot: string, private fpcpath: string) {
 		this.diagMaps = new Map<string, vscode.Diagnostic[]>();
-		this.onDidClose(() => {
-			//vscode.window.showInformationMessage('onDidClose');
-			this.close();
+		this.onDidClose((e) => {
+			//vscode.window.showInformationMessage('onDidClose');	
 		});
-		
 		
 	}
 	code: number | undefined;
 
-	private static inst?: FpcBuildTaskTerminal;
-	static getInstance(workspaceRoot?: string, fpcpath?: string): FpcBuildTaskTerminal {
-		if (FpcBuildTaskTerminal.inst) {
-			if(FpcBuildTaskTerminal.inst.lastTerminalName){
-				vscode.window.terminals.forEach((e)=>{
-					if(e.name===FpcBuildTaskTerminal.inst?.lastTerminalName){
-						e.dispose();
-					}
-				});
-		
-			}
-			return FpcBuildTaskTerminal.inst;
-		} else {
-			FpcBuildTaskTerminal.inst = new FpcBuildTaskTerminal(workspaceRoot!, fpcpath!);
-			return FpcBuildTaskTerminal.inst;
-		}
+	// private static inst?: FpcBuildTaskTerminal;
+	// static getInstance(workspaceRoot?: string, fpcpath?: string): FpcBuildTaskTerminal {
+	// 	if (FpcBuildTaskTerminal.inst) {
+	// 		return FpcBuildTaskTerminal.inst;
+	// 	} else {
+	// 		FpcBuildTaskTerminal.inst = new FpcBuildTaskTerminal(workspaceRoot!, fpcpath!);
+	// 		return FpcBuildTaskTerminal.inst;
+	// 	}
 
-	}
+	// }
 	clear() {
 	
 	}
 	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+		//vscode.window.createTerminal()
 		// At this point we can start using the terminal.
-		this.lastTerminalName=vscode.window.activeTerminal?.name;
-
 		this.doBuild();
 	}
 
 	close(): void {
-		this.code=0;
+	
 	}
+	
 
 	buildend() {
 		// The terminal has been closed. Shutdown the build.
@@ -226,8 +221,8 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	}
 
 
-	private async doBuild(): Promise<void> {
-		return new Promise<void>((resolve) => {
+	private async doBuild(): Promise<number> {
+		return new Promise<number>((resolve) => {
 			
 			this.buffer = "";
 			this.errbuf = "";
@@ -238,9 +233,13 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			this.process.stdout?.on('data', this.stdout.bind(this));
 			this.process.stderr?.on('data', this.stderr.bind(this));
 			this.process.on('close', (code) => {
+				
 				this.writeEmitter.fire(`Exited with code ${code}.\r\nBuild complete. \r\n\r\n`);
 				this.buildend();
-				this.closeEmitter.fire();
+				//This is a exitcode,not zero meens failure.
+				this.closeEmitter.fire(code);
+				
+				resolve(0);
 			});
 
 		});
@@ -327,21 +326,6 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 
 			} else if (line.startsWith('Error:') || line.startsWith('Fatal:')) { //Fatal|Error|Warning|Note
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
-				// let file=this.args[0];
-				// let diag = new vscode.Diagnostic(
-				// 	new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)),
-				// 	line.substr(7),
-				// 	vscode.DiagnosticSeverity.Error
-				// );
-
-				// if(this.diagMaps?.has(file)){
-
-				// 	this.diagMaps.get(file)?.push(diag);
-				// }else{
-
-				// 	this.diagMaps.set(file, [diag]);
-
-				// }
 
 			} else if (line.startsWith('Warning:')) {
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.BrightYellow] }));

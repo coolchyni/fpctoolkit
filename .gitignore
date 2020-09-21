@@ -2,3 +2,7 @@ out
 node_modules
 .vscode-test/
 *.vsix
+media/fpctoolkit.gif
+media/logo.png
+media/paw.png
+media/QQ20200917-162023-HD.mov

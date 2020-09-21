@@ -1,17 +1,34 @@
 {
 	"name": "fpctoolkit",
-	"displayName": "Fpc toolkit",
-	"description": "Toolkit for free pascal.",
+	"displayName": "FreePascal Toolkit",
+	"description": "Free pascal compile and build.",
 	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.44.0"
 	},
+	"extensionDependencies": [],
+	"icon": "images/logo.png",
 	"categories": [
-		"Other"
+		"Programming Languages"
 	],
 	"publisher": "coolchyni",
+	"author": {
+		"name": "coolchyni",
+		"email": "coolchyni@gmail.com"
+	},
+	"license": "MIT",
+	"keywords": [
+		"free pascal freepascal fpc lazarus objectpascal delphi"
+	],
+	"private": true,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-mock-debug.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Microsoft/vscode-mock-debug/issues"
+	},
 	"activationEvents": [
-		"onCommand:fpctoolkit.helloWorld",
 		"onView:FpcProjectExplorer"
 	],
 	"main": "./out/extension.js",
@@ -28,6 +45,10 @@
 			{
 				"command": "fpctoolkit.project.opensetting",
 				"title": "Open"
+			},
+			{
+				"command": "fpctoolkit.project.add",
+				"title": "New Build Config"
 			}
 		],
 		"taskDefinitions": [
@@ -125,7 +146,7 @@
 					"group": "fpcproject@1"
 				},
 				{
-					"command": "fpctoolkit.project.opensetting",
+					"command": "fpctoolkit.project.add",
 					"when": "view == FpcProjectExplorer && viewItem==fpcproject",
 					"group": "fpcproject@0"
 				}
@@ -138,7 +159,29 @@
 					"fpctoolkit.fpcPath": {
 						"type": "string",
 						"description": "path for free pascal"
+					},
+					"fpctoolkit.searchPath": {
+						"type": "array",
+						"description": "Searchpath for units and other system dependent things.(-Fu)",
+						"items": {
+							"type": "string"
+						}
+					},
+					"fpctoolkit.libPath": {
+						"type": "array",
+						"description": "Searchpath for libraries.(-Fl)",
+						"items": {
+							"type": "string"
+						}
+					},
+					"fpctoolkit.customOptions": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "Custom compile options for fpc."
 					}
+					
 				}
 			}
 		],
@@ -179,12 +222,14 @@
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
+		"vscode:prepublish": "yarn run compile",
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
-		"pretest": "npm run compile && npm run lint",
-		"test": "node ./out/test/runTest.js"
+		"pretest": "yarn run compile && yarn run lint",
+		"test": "node ./out/test/runTest.js",
+		"package": "vsce package",
+		"publish": "vsce publish"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.44.0",

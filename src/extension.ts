@@ -13,17 +13,6 @@ export function activate(context: vscode.ExtensionContext) {
 	if (!workspaceRoot) {
 		return;
 	}
-	
-
-
-	//assocate .fpr
-	// var assoc:any=vscode.workspace.getConfiguration('files',null).get("associations");
-	// assoc['*.fpr']='json';
-	// vscode.workspace.getConfiguration('files',null).update("associations",assoc,vscode.ConfigurationTarget.Global);
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "fpctoolkit" is now active!');
 
 	let commands=new FpcCommandManager(workspaceRoot);
 	commands.registerAll(context);

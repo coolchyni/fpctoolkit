@@ -1,9 +1,6 @@
-# Change Log
-
-All notable changes to the "fpcvsext" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
 ## [Unreleased]
+- Using lazarus project files 
+- Code completion 
 
+## [1.0.0] - 2020-09-17
 - Initial release

@@ -6,7 +6,7 @@ export class CompileOption {
      * Compile Option
      */
     public type:string="fpc";
-    //public problemMatcher="$fpc";
+
     public presentation={
         showReuseMessage: false,
 		clear: true,
@@ -16,15 +16,16 @@ export class CompileOption {
     public buildOption?:{
          targetOS?: string,
          targetCPU?: string,
-         customOptions?:string [],    
-         libPath?: [],
+         customOptions?:string[],    
+         libPath?: string[],
          outputFile?: string,
          unitOutputDir?: string,
          optimizationLevel?: number,
-         searchPath?: [],
+         searchPath?: string[],
          syntaxMode?: string
          
     };
+   
     constructor(
         public label:string,
         public file: string
@@ -35,10 +36,17 @@ export class CompileOption {
                 "-dDEBUG"
             ]
         };
+       
     }
     
-
     toOptionString() {
+        let fpccfg = vscode.workspace.getConfiguration("fpctoolkit");
+        let globalOption={
+            customOptions: fpccfg.get<string[]>('customOptions'),    
+            libPath: fpccfg.get<string[]>('libPath'), 
+            searchPath:fpccfg.get<string[]>('searchPath'),
+        };
+
         let s: string = '';
         if (this.buildOption?.targetOS) {
             s += "-T" + this.buildOption!.targetOS + " ";
@@ -64,7 +72,14 @@ export class CompileOption {
             s += "-o" + this.buildOption!.outputFile + " ";
         }
  
+        globalOption?.searchPath?.forEach((e)=>{
+            s+="-Fu"+e+" ";
+        });
+        globalOption?.libPath?.forEach((e)=>{
+            s+="-Fl"+e+" ";
+        });
 
+        
         this.buildOption?.searchPath?.forEach((e)=>{
             s+="-Fu"+e+" ";
         });
@@ -99,7 +114,9 @@ export class CompileOption {
         if (this.buildOption?.syntaxMode) {
             s += "-M" + this.buildOption!.syntaxMode + " ";
         }
-       
+        globalOption?.customOptions?.forEach((e) => {
+            s += e + " ";
+        });
         this.buildOption?.customOptions?.forEach((e) => {
             s += e + " ";
         });
@@ -111,38 +128,4 @@ export class CompileOption {
 export class TaskInfo{
     ischanged:boolean=false;
     tasks:any;
-}
-export class FpcSetting {
-    public compileOptions: CompileOption[] = [];
-
-    constructor(private taskinfo: TaskInfo , public readonly file: string) {
-        this.bindFile();
-
-    }
-    bindFile() {
-
-        // retrieve values
-       
-        if (this.taskinfo.tasks === undefined) {
-            this.taskinfo.tasks = [];
-        }
-        this.taskinfo.tasks.forEach((e: any) => {
-            if ((e.type==="fpc") && (e.file === this.file)) {
-                let opt = new CompileOption(e.label,e.file);
-                opt.buildOption=e.buildOption;
-                this.compileOptions.push(opt);
-            }
-        });
-        if(this.compileOptions.length===0){
-            let label="fpc:build:"+this.file.substr(0,this.file.length-4);
-            let opt = new CompileOption(label,this.file);
-            this.compileOptions[0]=opt;
-            this.taskinfo.tasks.push(opt);
-            this.taskinfo.ischanged=true;
-        }
-
-        return ;
-
-       
-    }
 }

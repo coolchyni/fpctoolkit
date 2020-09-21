@@ -2,28 +2,29 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { basename } from 'path';
-import { FpcSetting, CompileOption, TaskInfo } from './fpcSetting';
+import { CompileOption, TaskInfo } from './fpcSetting';
+import { openStdin } from 'process';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 	private _onDidChangeTreeData: vscode.EventEmitter<FpcItem | undefined | void> = new vscode.EventEmitter<FpcItem | undefined | void>();
 	readonly onDidChangeTreeData: vscode.Event<FpcItem | undefined | void> = this._onDidChangeTreeData.event;
-	private watch!:vscode.FileSystemWatcher;
-	private watchlpr!:vscode.FileSystemWatcher;
+	private watch!: vscode.FileSystemWatcher;
+	private watchlpr!: vscode.FileSystemWatcher;
 	constructor(private workspaceRoot: string) {
-		this.watch=vscode.workspace.createFileSystemWatcher("**/tasks.json",true);
-		this.watch.onDidChange(()=>{
+		this.watch = vscode.workspace.createFileSystemWatcher("**/tasks.json", true);
+		this.watch.onDidChange((url) => {
 			this.refresh();
 		});
-		this.watch.onDidDelete(()=>{
+		this.watch.onDidDelete(() => {
 			this.refresh();
 		});
 
-		this.watchlpr=vscode.workspace.createFileSystemWatcher("**/*.lpr",false,true,false);
-		this.watchlpr.onDidCreate(()=>{
+		this.watchlpr = vscode.workspace.createFileSystemWatcher("**/*.lpr", false, true, false);
+		this.watchlpr.onDidCreate(() => {
 			this.refresh();
 		});
-		this.watchlpr.onDidDelete(()=>{
+		this.watchlpr.onDidDelete(() => {
 			this.refresh();
 		});
 
@@ -46,93 +47,133 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 	getChildren(element?: FpcItem | undefined): vscode.ProviderResult<FpcItem[]> {
 
-		
-		if(element){
-			var items: FpcItem[]=[];
-			 element.fprSetting?.compileOptions.forEach((option)=>{
 
+		if (element) {
+			let items: FpcItem[] = [];
+			element.tasks?.forEach((task)=>{
 				items.push(new FpcItem(
 					1,
-					option.label,
+					task.label,
 					vscode.TreeItemCollapsibleState.None,
 					element.file,
-					element.fprSetting,
-					option
-			   ));
-			 });
-			 return Promise.resolve(items);
+					element.fileexist
+				));
+			});
+			// element.fprSetting?.compileOptions.forEach((option) => {
 
-		}else{
-			
-				var items: FpcItem[]=[];
-				let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-				//定义成这样是为了能够按地址传递 
-				var info =new TaskInfo();
-				info.tasks=config.tasks;
-				
-				vscode.workspace.workspaceFolders!.forEach(item => {
-					let files=fs.readdirSync(item.uri.fsPath);
-					for (let index = 0; index < files.length; index++) {
-						
-						let file=files[index];
+			// 	items.push(new FpcItem(
+			// 		1,
+			// 		option.label,
+			// 		vscode.TreeItemCollapsibleState.None,
+			// 		element.file,
+			// 		element.fileexist
+			// 		//element.fprSetting,
+			// 		//option
+			// 	));
+			// });
+			return Promise.resolve(items);
 
-						if(file.toLowerCase().endsWith('.lpr'))
-						{
-							try {
-								let label=file.substring(0,file.length-4);
-							
-								let fsetting=new FpcSetting(info,file);
+		} else {
+			//root node 
 
-								items.push(new FpcItem(
+			var itemMaps: Map<string, FpcItem> = new Map();
+			let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+			//create info for pass tasks as pointer
+			//var info =new TaskInfo();
+			//info.tasks=config.tasks;
+
+
+			config?.tasks?.forEach((e: any) => {
+				if (!itemMaps.has(e.file)) {
+					itemMaps.set(
+						e.file,
+						new FpcItem(
+							0,
+							path.basename(e.file),
+							vscode.TreeItemCollapsibleState.Expanded,
+							e.file,
+							true,
+							[e]
+						)
+					);
+				} else {
+					itemMaps.get(e.file)?.tasks?.push(e);
+				}
+
+			});
+			let items: FpcItem[] = [];
+
+
+			vscode.workspace.workspaceFolders!.forEach(item => {
+				let files = fs.readdirSync(item.uri.fsPath);
+				for (let index = 0; index < files.length; index++) {
+
+					let file = files[index];
+
+					if (file.toLowerCase().endsWith('.lpr') || file.toLowerCase().endsWith('.dpr')) {
+						try {
+							if (itemMaps.has(file)) {
+								itemMaps.get(file)!.fileexist = true;
+								continue;
+							}
+
+							itemMaps.set(
+								file,
+								new FpcItem(
 									0,
-									label,
+									file,
 									vscode.TreeItemCollapsibleState.Expanded,
 									file,
-									fsetting
-									
-								));
-							} catch (error) {
-								vscode.window.showErrorMessage(Error(error).message);
-							}
-							
-							
+									true
+
+								)
+							);
+
+						} catch (error) {
+							vscode.window.showErrorMessage(Error(error).message);
 						}
+
+
 					}
-					
-						
-	
-					
-				});  
-				if(info.ischanged){
-					config.update("tasks",info.tasks,vscode.ConfigurationTarget.WorkspaceFolder);
 				}
-				return Promise.resolve(items);
+			});
+
+			for (const e of itemMaps.values()) {
+				items.push(e);
+			}
+
+
+			//});  
+			// if(info.ischanged){
+			// 	config.update("tasks",info.tasks,vscode.ConfigurationTarget.WorkspaceFolder);
+			// }
+
+			return Promise.resolve(items);
 		}
 
-        return Promise.resolve([]);
+		return Promise.resolve([]);
 
 	}
 }
 
 export class FpcItem extends vscode.TreeItem {
- 
-	
+
+
 	constructor(
-		public readonly level:number,
+		public readonly level: number,
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly file: string,
-		public fprSetting?:FpcSetting,
-		public compileOption?:CompileOption,
-		public readonly command?: vscode.Command
+		public fileexist: boolean,
+		public tasks?: any[]
 	) {
 		super(label, collapsibleState);
-		if(level===0){
-			this.contextValue='fpcproject';
-		}else {
-			this.contextValue='fpcbuild';
+		if (level === 0) {
+			this.contextValue = 'fpcproject';
+		} else {
+			this.contextValue = 'fpcbuild';
 		}
-		
+
 	}
 
 	get tooltip(): string {
@@ -144,8 +185,8 @@ export class FpcItem extends vscode.TreeItem {
 	}
 
 	iconPath = {
-		light: path.join(__filename,'..','..', 'images', this.level?'build.png':'pascal-project.png'),
-		dark: path.join(__filename, '..','..', 'images', this.label?'build.png':'pascal-project.png' )
+		light: path.join(__filename, '..', '..', 'images', this.level ? 'build.png' : 'pascal-project.png'),
+		dark: path.join(__filename, '..', '..', 'images', this.label ? 'build.png' : 'pascal-project.png')
 	};
 
 

@@ -1,44 +1,73 @@
-# fpctoolkit README
+# FreePascal Toolkit 
+`FreePascal Toolkit` is a VSCode extension for developing FreePascal applications.
 
-## Features
-
-Tootkit for free pascal with vscode.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+![FreePascal Toolkit preview](images/fpctoolkit.gif)
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- Install [FreePascal](https://www.freepascal.org/download.var) on your system. Then Set the system PATH environment variable, or set `fpctoolkit.fpcPath` in vscode's user setting. 
 
-## Extension Settings
+- Install [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) for  debug freepascal program .
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+- Install [OmniPascal](https://marketplace.visualstudio.com/items?itemName=Wosi.omnipascal) for  use code completion. 
+For a better experience, please turn off it's auto  create buildscripts feature!
+    ~~~js
+    "omnipascal.createBuildScripts": false
+    ~~~
 
-For example:
+## Features
+- build freepascal program
+- explorer build tasks
 
-This extension contributes the following settings:
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
+## Freepascal Task Settings
 
-## Known Issues
+You can add freepascal compile tasks by editing `task.json` in your .vscode folder.
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+The task's type is `fpc`. It contains the following configuration items.
+
+### Task settings
+Field   | type  |  Description  |
+------  | ----- |  :-------------
+`file`  | string|main program file
+`type`  | string|always be `fpc`
+`buildOption`|object|build options
+
+### buildOptions
+Field  | type | Description  |
+-------| ---- |:---------------
+`targetOS`  | string | Target OS (-T).  eg. `linux` `win64`
+`targetCPU` |tring| Target cpu family (-P). eg. `x86_64` `i386`
+`customOptions`|string []| Any compile options for fpc.     
+`libPath`|string[]|Searchpath for libraries.(-Fl)
+`outputFile`| string| Target file name.(-o)
+`unitOutputDir`| string|Unit output directory.(-FU)
+`optimizationLevel`| number|Optimization levels (-O)
+`searchPath`| string[]|Searchpath for units and other system dependent things.(-Fu)
+`syntaxMode`| string|Syntax Mode (-M)
+
+example:
+~~~json
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "fpc:build:main",
+			"file": "main.lpr",
+			"type": "fpc",
+			"buildOption": {
+				"unitOutputDir": "./out",
+				"customOptions": [
+					"-dDEBUG"
+				]
+			}
+		}
+	]
+}
+~~~
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
+[view changelog](CHANGELOG.md)
 
 
