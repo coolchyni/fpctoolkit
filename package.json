@@ -6,7 +6,6 @@
 	"engines": {
 		"vscode": "^1.44.0"
 	},
-	"extensionDependencies": [],
 	"icon": "images/logo.png",
 	"categories": [
 		"Programming Languages"
@@ -18,15 +17,21 @@
 	},
 	"license": "MIT",
 	"keywords": [
-		"free pascal freepascal fpc lazarus objectpascal delphi"
+		"free",
+		"pascal",
+		"freepascal",
+		"fpc",
+		"lazarus",
+		"objectpascal",
+		"delphi"
 	],
 	"private": true,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-mock-debug.git"
+		"url": "https://github.com/coolchyni/fpctoolkit.git"
 	},
 	"bugs": {
-		"url": "https://github.com/Microsoft/vscode-mock-debug/issues"
+		"url": "https://github.com/coolchyni/fpctoolkit/issues"
 	},
 	"activationEvents": [
 		"onView:FpcProjectExplorer"
