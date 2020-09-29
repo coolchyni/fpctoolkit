@@ -9,11 +9,12 @@ import { FpcCommandManager } from './fpcCommandManager';
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	const workspaceRoot = vscode.workspace.rootPath;
-	if (!workspaceRoot) {
+	if (!vscode.workspace.workspaceFolders) {
 		return;
 	}
-
+	
+	const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+	
 	let commands=new FpcCommandManager(workspaceRoot);
 	commands.registerAll(context);
 	
