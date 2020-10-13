@@ -56,7 +56,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					task.label,
 					vscode.TreeItemCollapsibleState.None,
 					element.file,
-					element.fileexist
+					element.fileexist,
+					[task]
 				));
 			});
 			// element.fprSetting?.compileOptions.forEach((option) => {

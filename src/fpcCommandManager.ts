@@ -2,7 +2,10 @@ import * as vscode from 'vscode';
 import { FpcItem } from './fpcProjectProvider';
 import { FpcTaskProvider } from './fpcTaskProvider';
 import * as fs from 'fs';
+import * as fs2 from 'fs-extra';
 import path = require('path');
+import { openStdin } from 'process';
+import { resolve } from 'path';
 
 export class FpcCommandManager {
     constructor(private workspaceRoot: string) {
@@ -10,6 +13,7 @@ export class FpcCommandManager {
     }
     registerAll(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.build', this.ProjectBuild));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.clean', this.projectClean));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.opensetting', this.ProjectOpen));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
@@ -150,5 +154,22 @@ end.`;
         );
 
     };
+    projectClean=async (node: FpcItem) => {
+        if(!node.tasks) {return;}
+        let dir= (node.tasks[0]).buildOption?.unitOutputDir;
+        if(!dir){return ;}
+        dir=path.join(this.workspaceRoot,dir);
+        fs.exists(dir,(exist:boolean)=>{
+            if (exist){
+                try {
+                    fs2.removeSync(dir);
+                } catch (error) {
+                   
+                }
+                
+                
+            }
+        });
 
+    };
 }

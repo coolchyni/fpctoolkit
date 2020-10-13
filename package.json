@@ -2,7 +2,7 @@
 	"name": "fpctoolkit",
 	"displayName": "FreePascal Toolkit",
 	"description": "Free pascal compile and build.",
-	"version": "1.0.1",
+	"version": "1.0.3",
 	"engines": {
 		"vscode": "^1.44.0"
 	},
@@ -46,6 +46,10 @@
 			{
 				"command": "fpctoolkit.project.build",
 				"title": "Build"
+			},
+			{
+				"command": "fpctoolkit.project.clean",
+				"title": "Clean"
 			},
 			{
 				"command": "fpctoolkit.project.opensetting",
@@ -151,6 +155,11 @@
 					"group": "fpcproject@1"
 				},
 				{
+					"command": "fpctoolkit.project.clean",
+					"when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+					"group": "fpcproject@2"
+				},
+				{
 					"command": "fpctoolkit.project.add",
 					"when": "view == FpcProjectExplorer && viewItem==fpcproject",
 					"group": "fpcproject@0"
@@ -186,7 +195,6 @@
 						},
 						"description": "Custom compile options for fpc."
 					}
-					
 				}
 			}
 		],
@@ -236,17 +244,22 @@
 		"package": "vsce package",
 		"publish": "vsce publish"
 	},
+	"dependencies": {
+		"@types/fs-extra": "9.0.2",
+		"fs-extra": "9.0.1"
+	},
 	"devDependencies": {
+		"eslint": "^6.8.0",
+		"@typescript-eslint/parser": "^2.30.0",
+		"@typescript-eslint/eslint-plugin": "^2.30.0",
 		"@types/vscode": "^1.44.0",
 		"@types/glob": "^7.1.1",
 		"@types/mocha": "^7.0.2",
 		"@types/node": "^13.11.0",
-		"eslint": "^6.8.0",
-		"@typescript-eslint/parser": "^2.30.0",
-		"@typescript-eslint/eslint-plugin": "^2.30.0",
 		"glob": "^7.1.6",
 		"mocha": "^7.1.2",
 		"typescript": "^3.8.3",
 		"vscode-test": "^1.3.0"
+		
 	}
 }
