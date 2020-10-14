@@ -50,7 +50,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		if (element) {
 			let items: FpcItem[] = [];
-			element.tasks?.forEach((task)=>{
+			element.tasks?.forEach((task) => {
 				items.push(new FpcItem(
 					1,
 					task.label,
@@ -85,20 +85,23 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 
 			config?.tasks?.forEach((e: any) => {
-				if (!itemMaps.has(e.file)) {
-					itemMaps.set(
-						e.file,
-						new FpcItem(
-							0,
-							path.basename(e.file),
-							vscode.TreeItemCollapsibleState.Expanded,
+				if (e.type === 'fpc') {
+
+					if (!itemMaps.has(e.file)) {
+						itemMaps.set(
 							e.file,
-							true,
-							[e]
-						)
-					);
-				} else {
-					itemMaps.get(e.file)?.tasks?.push(e);
+							new FpcItem(
+								0,
+								path.basename(e.file),
+								vscode.TreeItemCollapsibleState.Expanded,
+								e.file,
+								true,
+								[e]
+							)
+						);
+					} else {
+						itemMaps.get(e.file)?.tasks?.push(e);
+					}
 				}
 
 			});
@@ -131,7 +134,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 							);
 
 						} catch (error) {
-							vscode.window.showErrorMessage(Error(error).message);
+							vscode.window.showErrorMessage("FPCToolkit:" + Error(error).message);
 						}
 
 

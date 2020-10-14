@@ -2,6 +2,10 @@
 - Using lazarus project files 
 - Code completion 
 
+## [1.0.4] - 2020-10-14
+### fixed:
+- Throw exception when parsing non-fpc type tasks
+
 ## [1.0.3] - 2020-10-13
 ### fixed:
 - error with "fs-extra module not found"
