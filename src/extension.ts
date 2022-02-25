@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 	
 
 }
-function onDidChangeVisibleTextEditors(editors: vscode.TextEditor[]): void {
+function onDidChangeVisibleTextEditors(editors: readonly vscode.TextEditor[]): void {
     // Process delayed didOpen for any visible editors we haven't seen before
     editors.forEach(editor => {
         if ((editor.document.uri.scheme === "file") && (editor.document.languageId === "objectpascal" || editor.document.languageId === "pascal" )) {

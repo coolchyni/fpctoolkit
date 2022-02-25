@@ -8,6 +8,7 @@
 - gotoDeclaration, gotoDefinition
 - references 
 - documentHighlight
+- i18n support
 
 ## [1.0.4] - 2020-10-14
 ### fixed:
