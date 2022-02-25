@@ -3,17 +3,16 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as vscode from 'vscode';
-import { CompileOption } from './fpcSetting';
+import { CompileOption } from '../languageServer/options';
 import { pathToFileURL } from 'url';
 import * as ChildProcess from "child_process";
 import path = require('path');
-import { TerminalEscape, TE_Style } from './terminalEscape';
+import { TerminalEscape, TE_Style } from '../common/escape';
 import * as fs from 'fs';
 import { threadId } from 'worker_threads';
 import { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } from 'constants';
 import { resolve } from 'path';
-
-
+import { configuration } from '../common/configuration';
 export interface FpcTaskDefinition extends vscode.TaskDefinition {
 	/**
 	 *
@@ -30,7 +29,8 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 	static FpcTaskType = 'fpc';
 
 
-	constructor(private workspaceRoot: string) { }
+	constructor(private workspaceRoot: string,private cwd: string|undefined=undefined) { 
+	}
 
 	public async provideTasks(): Promise<vscode.Task[]> {
 		return this.getTasks();
@@ -40,6 +40,10 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 		const file: string = _task.definition.file;
 		if (file) {
 			const definition: FpcTaskDefinition = <any>_task.definition;
+			if(_task.definition.cwd){
+				this.cwd=this.workspaceRoot+'/'+_task.definition.cwd;
+			}
+			
 			return this.getTask(_task.name, definition.file, definition.buildOption, definition);
 		}
 		return undefined;
@@ -50,7 +54,8 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 	}
 
 	public getTask(name: string, file: string, buildOptionString?: string, definition?: FpcTaskDefinition): vscode.Task {
-		let task = new FpcTask(this.workspaceRoot, name, file, buildOptionString, definition);
+		let task = new FpcTask(this.cwd?this.cwd:this.workspaceRoot, name, file, buildOptionString, definition);
+
 		// task.presentationOptions.clear = true;
 		// task.presentationOptions.echo = true;
 		// task.presentationOptions.focus = false;
@@ -69,7 +74,7 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 }
 
 class FpcTask extends vscode.Task  {
-	constructor(workspaceRoot: string, name: string, file: string, buildOptionString?: string, taskDefinition?: FpcTaskDefinition) {
+	constructor(cwd: string, name: string, file: string, buildOptionString?: string, taskDefinition?: FpcTaskDefinition) {
 
 		if (taskDefinition?.buildOption) {
 			let opt: CompileOption = new CompileOption(taskDefinition.file, taskDefinition.file);
@@ -79,7 +84,6 @@ class FpcTask extends vscode.Task  {
 		if (!buildOptionString) {
 			buildOptionString = "";
 		}
-
 
 		if (!taskDefinition) {
 			taskDefinition = {
@@ -94,13 +98,12 @@ class FpcTask extends vscode.Task  {
 		// 	undefined,
 		// 	[]
 		// );
-		let fpccfg = vscode.workspace.getConfiguration("fpctoolkit");
-		let fpcpath = fpccfg.get<string>('fpcPath');
+		let fpcpath = configuration.get<string>('env.PP');
 
 		fpcpath = path.join(fpcpath ? fpcpath! : '', "fpc");
 
 	
-	
+		
 		super(
 			taskDefinition,
 			vscode.TaskScope.Workspace,
@@ -111,7 +114,7 @@ class FpcTask extends vscode.Task  {
 				// 	// When the task is executed, this callback will run. Here, we setup for running the task.
 				// let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
 				//terminal.args =  `${taskDefinition?.file} ${buildOptionString}`.split(' ');
-				let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
+				let terminal = new  FpcBuildTaskTerminal(cwd, fpcpath!);
 				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
 				return  terminal;
 				
@@ -140,7 +143,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	private diagMaps: Map<string, vscode.Diagnostic[]>;
 	public args: string[] = [];
 
-	constructor(private workspaceRoot: string, private fpcpath: string) {
+	constructor(private cwd: string, private fpcpath: string) {
 		this.diagMaps = new Map<string, vscode.Diagnostic[]>();
 		this.onDidClose((e) => {
 			//vscode.window.showInformationMessage('onDidClose');	
@@ -199,7 +202,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	}
 	findFile(filename: string): vscode.Uri | undefined {
 
-		let f = path.join(this.workspaceRoot, filename);
+		let f = path.join(this.cwd, filename);
 		if (fs.existsSync(f)) {
 			return vscode.Uri.file(f);
 		}
@@ -208,7 +211,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			if (e.startsWith('-Fu')) {
 				let f2 = e.substr(3);
 				if (f2.startsWith('.')) {
-					f = path.join(this.workspaceRoot, f2, filename);
+					f = path.join(this.cwd, f2, filename);
 				} else {
 					f = path.join(f2, filename);
 				}
@@ -228,7 +231,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			this.errbuf = "";
 			this.diagMaps.clear();
 			this.emit(TerminalEscape.apply({ msg: `${this.fpcpath} ${this.args.join(' ')}\r\n`, style: [TE_Style.Bold] }));
-			this.process = ChildProcess.spawn(this.fpcpath, this.args, { cwd: this.workspaceRoot });
+			this.process = ChildProcess.spawn(this.fpcpath, this.args, { cwd: this.cwd });
 
 			this.process.stdout?.on('data', this.stdout.bind(this));
 			this.process.stderr?.on('data', this.stderr.bind(this));

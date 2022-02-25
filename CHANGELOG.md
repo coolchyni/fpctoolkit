@@ -1,6 +1,13 @@
 ## [Unreleased]
 - Using lazarus project files 
-- Code completion 
+
+## [1.1.0]
+- pascal language server 
+- code snippets
+- auto completion
+- gotoDeclaration, gotoDefinition
+- references 
+- documentHighlight
 
 ## [1.0.4] - 2020-10-14
 ### fixed:

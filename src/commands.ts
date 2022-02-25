@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { FpcItem } from './fpcProjectProvider';
-import { FpcTaskProvider } from './fpcTaskProvider';
+import { FpcItem } from './providers/project';
+import { FpcTaskProvider } from './providers/task';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
@@ -18,7 +18,7 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
     }
-    ProjectAdd = async (node: FpcItem) => {
+    ProjectAdd=async (node: FpcItem) =>{
         if (node.level === 0) {
             let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
             let inp = await vscode.window.showQuickPick(['debug', 'release', 'other...'], { canPickMany: false });
@@ -75,7 +75,7 @@ export class FpcCommandManager {
         }
 
     };
-    ProjectBuild = (node: FpcItem) => {
+    ProjectBuild=async (node: FpcItem) =>{
         if (node.level === 0) {
 
         } else {
@@ -93,12 +93,12 @@ export class FpcCommandManager {
         }
 
     };
-    ProjectOpen =async (node?: FpcItem) => {
+    ProjectOpen = async (node?: FpcItem) => {
 
         let file = path.join(this.workspaceRoot, ".vscode", "tasks.json");
-        let doc=await vscode.workspace.openTextDocument(file);        
-        let te=await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-        
+        let doc = await vscode.workspace.openTextDocument(file);
+        let te = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+
     };
     ProjectNew =async () => {
 
@@ -154,22 +154,44 @@ end.`;
         );
 
     };
-    projectClean=async (node: FpcItem) => {
-        if(!node.tasks) {return;}
-        let dir= (node.tasks[0]).buildOption?.unitOutputDir;
-        if(!dir){return ;}
-        dir=path.join(this.workspaceRoot,dir);
-        fs.exists(dir,(exist:boolean)=>{
-            if (exist){
-                try {
-                    fs2.removeSync(dir);
-                } catch (error) {
-                   
+    projectClean=async (node: FpcItem) =>{
+        if (!node.tasks) { return; }
+        let dir = (node.tasks[0]).buildOption?.unitOutputDir;
+        if (!dir) { return; }
+        dir = path.join(this.workspaceRoot, node.tasks[0].cwd, dir);
+        let cleanExt=node.tasks[0].cleanExt;
+        if (fs.existsSync(dir)) {
+            try {
+                let exts=['.o','.ppu'];
+                let isall=false;
+                if(cleanExt){
+                    if((<String>cleanExt).trim()=='*'){
+                        isall=true;
+                    }
+                    let tmps=(<String>cleanExt).split(',');
+                    for (const s of tmps) {
+                        exts.push(s);
+                    }
                 }
-                
-                
+                let files = fs.readdirSync(dir);
+				for (let index = 0; index < files.length; index++) {
+					let file = files[index].toLowerCase();
+                    let ext=path.extname(file);
+                        
+                    if(isall || exts.includes(ext)){
+                        try{
+                            fs2.removeSync(path.join(dir,file));
+                        }catch{
+
+                        }
+                        
+                    }
+                }
+	
+            } catch{
+
             }
-        });
+        };
 
     };
 }

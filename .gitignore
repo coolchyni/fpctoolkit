@@ -1,8 +1,6 @@
-out
 node_modules
-.vscode-test/
+out
 *.vsix
-media/fpctoolkit.gif
-media/logo.png
-media/paw.png
-media/QQ20200917-162023-HD.mov
+*.lock
+package-lock.json
+*.mov

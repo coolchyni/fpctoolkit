@@ -66,6 +66,12 @@ example:
 }
 ~~~
 
+
+## HighLight
+
+syntaxes from https://github.com/maresmar/ST-Pascal
+
+
 ## Release Notes
 
 [view changelog](CHANGELOG.md)
