@@ -158,7 +158,14 @@ end.`;
         if (!node.tasks) { return; }
         let dir = (node.tasks[0]).buildOption?.unitOutputDir;
         if (!dir) { return; }
-        dir = path.join(this.workspaceRoot, node.tasks[0].cwd, dir);
+        if(!path.isAbsolute(dir)){
+            if(node.tasks[0].cwd){
+                dir = path.join(node.tasks[0].cwd, dir);
+            }else{
+                dir = path.join(this.workspaceRoot, dir);
+            }
+        }
+       
         let cleanExt=node.tasks[0].cleanExt;
         if (fs.existsSync(dir)) {
             try {
