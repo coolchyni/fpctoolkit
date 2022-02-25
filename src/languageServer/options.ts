@@ -197,7 +197,7 @@ export class InitializationOptions{
         let fpcOptions: Array<string> = this.fpcOptions;
         let newopt = opt.toOptionString().split(' ');
         newopt.forEach((s) => {
-            if(s.startsWith('-Fi')||s.startsWith('-Fu'||s.startsWith('-d'))){
+            if(s.startsWith('-Fi')||s.startsWith('-Fu')||s.startsWith('-d')||s.startsWith('-M')){
             //if (!s.startsWith('-v')) { //-v will raise error ,hide it 
                 fpcOptions.push(s);
             }
