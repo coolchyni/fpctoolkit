@@ -96,7 +96,7 @@ export class TLangClient {
         // load environment variables from settings which are used for CodeTools
         let userEnvironmentVariables = {};
         let keys: string[] = ['PP', 'FPCDIR', 'LAZARUSDIR', 'FPCTARGET', 'FPCTARGETCPU'];
-        let settingEnvironmentVariables = workspace.getConfiguration('fpctoolkit.lsp.env');
+        let settingEnvironmentVariables = workspace.getConfiguration('fpctoolkit.env');
 
         Object.keys(settingEnvironmentVariables).forEach(key => {
             if (keys.includes(key)) {
