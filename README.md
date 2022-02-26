@@ -19,6 +19,15 @@
 - class and function references 
 - documentHighlight
 
+## Pascal Language Server 
+
+from [pascal-language-server](https://github.com/coolchyni/pascal-language-server)
+
+An [LSP](https://microsoft.github.io/language-server-protocol/) server
+implementation for Pascal variants that are supported by [Free
+Pascal](https://www.freepascal.org/), including Object Pascal. It uses
+[CodeTools](https://wiki.lazarus.freepascal.org/Codetools) from
+Lazarus as backend.
 
 ## Freepascal Task Settings
 
