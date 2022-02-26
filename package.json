@@ -291,7 +291,7 @@
 							"messages",
 							"verbose"
 						],
-						"default": "verbose",
+						"default": "off",
 						"description": "%lsp.trace.server%"
 					},
 					"fpctoolkit.lsp.initializationOptions.program": {
