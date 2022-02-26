@@ -9,15 +9,15 @@
 
 - Install [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) for  debug freepascal program .
 
-- Install [OmniPascal](https://marketplace.visualstudio.com/items?itemName=Wosi.omnipascal) for  use code completion. 
-For a better experience, please turn off it's auto  create buildscripts feature!
-    ~~~js
-    "omnipascal.createBuildScripts": false
-    ~~~
 
 ## Features
 - build freepascal program
 - explorer build tasks
+- code snippets
+- auto completion
+- gotoDeclaration, gotoDefinition
+- class and function references 
+- documentHighlight
 
 
 ## Freepascal Task Settings
