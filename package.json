@@ -107,6 +107,18 @@
 				"title": "%project.newconfig%"
 			}
 		],
+		"keybindings":[
+			{
+				"key": "ctrl+shift+down",
+				"command": "editor.action.goToImplementation",
+				"when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
+			},
+			{
+				"key": "ctrl+shift+up",
+				"command": "editor.action.goToImplementation",
+				"when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
+			}
+		],
 		"taskDefinitions": [
 			{
 				"type": "fpc",
