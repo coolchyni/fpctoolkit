@@ -14,13 +14,21 @@
 		{
 			"type": "npm",
 			"script": "compile",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: compile",
+			"detail": "tsc -p ./"
+		},
+		{
+			"type": "npm",
+			"script": "esbuild",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"problemMatcher": [],
-			"label": "npm: compile",
-			"detail": "tsc -p ./"
+			"label": "npm: esbuild",
+			"detail": "npm run -S esbuild-base -- --sourcemap"
 		}
 	]
 }
