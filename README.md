@@ -40,6 +40,8 @@ Field   | type  |  Description  |
 ------  | ----- |  :-------------
 `file`  | string|main program file
 `type`  | string|always be `fpc`
+`cwd`   | string|current path. Use wrokspace root if null.
+`cleanExt`|string|file extensions for clean file in unitOutputDir. use * for clear all file. default:(.o,.ppu)
 `buildOption`|object|build options
 
 ### buildOptions
