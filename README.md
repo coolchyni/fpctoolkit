@@ -5,7 +5,7 @@
 
 ## Requirements
 
-- Install [FreePascal](https://www.freepascal.org/download.var) on your system. Then Set the system PATH environment variable, or set `fpctoolkit.fpcPath` in vscode's user setting. 
+- Install [FreePascal](https://www.freepascal.org/download.var) on your system. Then Set the system PATH environment variable, or set `fpctoolkit.env.PP` in vscode's user setting. 
 
 - Install [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) for  debug freepascal program .
 
