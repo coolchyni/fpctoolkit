@@ -107,7 +107,7 @@
 				"title": "%project.newconfig%"
 			}
 		],
-		"keybindings":[
+		"keybindings": [
 			{
 				"key": "ctrl+shift+down",
 				"command": "editor.action.goToImplementation",
@@ -287,7 +287,7 @@
 					},
 					"fpctoolkit.format.tabsize": {
 						"type": "number",
-						"default":2,
+						"default": 2,
 						"markdownDescription": "%config.format.tabsize%"
 					}
 				}
@@ -429,19 +429,19 @@
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "yarn run compile",
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
-		"pretest": "yarn run compile && yarn run lint",
-		"test": "node ./out/test/runTest.js",
 		"package": "vsce package",
-		"publish": "vsce publish"
+		"publish": "vsce publish",
+		"vscode:prepublish": "npm run -S esbuild-base -- --minify",
+		"esbuild-base": "rimraf out &&  esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs  --platform=node",
+		"esbuild": "npm run -S esbuild-base -- --sourcemap",
+		"esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch"
 	},
 	"dependencies": {
 		"@types/fs-extra": "9.0.2",
 		"fs-extra": "9.0.1",
-		"jsonc-parser": "^2.3.1",
 		"vscode-languageclient": "^6.1.4",
 		"vscode-nls": "^3.2.5"
 	},
@@ -452,10 +452,11 @@
 		"@types/vscode": "^1.44.0",
 		"@typescript-eslint/eslint-plugin": "^2.30.0",
 		"@typescript-eslint/parser": "^2.30.0",
+		"esbuild": "^0.14.23",
+		"rimraf": "^3.0.2",
 		"eslint": "^6.8.0",
 		"glob": "^7.2.0",
 		"mocha": "^7.1.2",
-		"typescript": "^3.9.10",
-		"vscode-test": "^1.6.1"
+		"typescript": "^3.9.10"
 	}
 }

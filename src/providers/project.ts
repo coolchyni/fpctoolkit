@@ -6,7 +6,7 @@ import { CompileOption, TaskInfo } from '../languageServer/options';
 import { openStdin } from 'process';
 import { FpcTaskDefinition } from './task';
 import { Command } from 'vscode-languageserver-types';
-import { visit, JSONVisitor } from "jsonc-parser";
+//import { visit, JSONVisitor } from "jsonc-parser";
 import { pathExists } from 'fs-extra';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
@@ -189,59 +189,60 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		return opt;
 	}
 	private findJsonDocumentPosition(documentText: string, taskItem: FpcItem) {
-		const me = this;
-		let inScripts = false;
-		let inTasks = false;
-		let inTaskLabel: any;
-		let scriptOffset = 0;
+		// const me = this;
+		// let inScripts = false;
+		// let inTasks = false;
+		// let inTaskLabel: any;
+		// let scriptOffset = 0;
 
 
-		const visitor: JSONVisitor =
-		{
-			onError: () => {
-				return scriptOffset;
-			},
-			onObjectEnd: () => {
-				if (inScripts) {
-					inScripts = false;
-				}
-			},
-			onLiteralValue: (value: any, offset: number, _length: number) => {
-				if (inTaskLabel) {
-					if (typeof value === "string") {
-						if (inTaskLabel === "label" || inTaskLabel === "script") {
+		// const visitor: JSONVisitor =
+		// {
+		// 	onError: () => {
+		// 		return scriptOffset;
+		// 	},
+		// 	onObjectEnd: () => {
+		// 		if (inScripts) {
+		// 			inScripts = false;
+		// 		}
+		// 	},
+		// 	onLiteralValue: (value: any, offset: number, _length: number) => {
+		// 		if (inTaskLabel) {
+		// 			if (typeof value === "string") {
+		// 				if (inTaskLabel === "label" || inTaskLabel === "script") {
 
-							if (taskItem.label === value) {
-								scriptOffset = offset;
-							}
-						}
-					}
-					inTaskLabel = undefined;
-				}
-			},
-			onObjectProperty: (property: string, offset: number, _length: number) => {
-				if (property === "tasks") {
-					inTasks = true;
-					if (!inTaskLabel) { // select the script section
-						scriptOffset = offset;
-					}
-				}
-				else if ((property === "label" || property === "script") && inTasks && !inTaskLabel) {
-					inTaskLabel = "label";
-					if (!inTaskLabel) { // select the script section
-						scriptOffset = offset;
-					}
-				}
-				else { // nested object which is invalid, ignore the script
-					inTaskLabel = undefined;
-				}
-			}
-		};
+		// 					if (taskItem.label === value) {
+		// 						scriptOffset = offset;
+		// 					}
+		// 				}
+		// 			}
+		// 			inTaskLabel = undefined;
+		// 		}
+		// 	},
+		// 	onObjectProperty: (property: string, offset: number, _length: number) => {
+		// 		if (property === "tasks") {
+		// 			inTasks = true;
+		// 			if (!inTaskLabel) { // select the script section
+		// 				scriptOffset = offset;
+		// 			}
+		// 		}
+		// 		else if ((property === "label" || property === "script") && inTasks && !inTaskLabel) {
+		// 			inTaskLabel = "label";
+		// 			if (!inTaskLabel) { // select the script section
+		// 				scriptOffset = offset;
+		// 			}
+		// 		}
+		// 		else { // nested object which is invalid, ignore the script
+		// 			inTaskLabel = undefined;
+		// 		}
+		// 	}
+		// };
 
-		visit(documentText, visitor);
+		// visit(documentText, visitor);
 
-		//log.methodDone("find json document position", 3, "   ", false, [["position", scriptOffset]]);
-		return scriptOffset;
+		// //log.methodDone("find json document position", 3, "   ", false, [["position", scriptOffset]]);
+		// return scriptOffset;
+		return documentText.indexOf('"label": "'+taskItem.label+'"');
 	}
 	private async open(selection: FpcItem) {
 
@@ -299,8 +300,8 @@ export class FpcItem extends vscode.TreeItem {
 
 
 	iconPath = {
-		light: path.join(__filename, '..', '..', '..', 'images', this.level ? 'build.png' : 'pascal-project.png'),
-		dark: path.join(__filename, '..', '..', '..', 'images', this.label ? 'build.png' : 'pascal-project.png')
+		light: path.join(__filename, '..','..',  'images', this.level ? 'build.png' : 'pascal-project.png'),
+		dark: path.join(__filename, '..','..',  'images', this.label ? 'build.png' : 'pascal-project.png')
 	};
 
 

@@ -1,11 +1,8 @@
 import * as vscode from 'vscode';
 import { FpcItem } from './providers/project';
-import { FpcTaskProvider } from './providers/task';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
-import { openStdin } from 'process';
-import { resolve } from 'path';
 
 export class FpcCommandManager {
     constructor(private workspaceRoot: string) {

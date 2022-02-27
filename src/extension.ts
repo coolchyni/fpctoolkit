@@ -1,28 +1,10 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { FpcProjectProvider, FpcItem } from './providers/project';
-import { FpcTaskProvider, FpcTaskDefinition } from './providers/task';
+import { FpcProjectProvider } from './providers/project';
+import { FpcTaskProvider } from './providers/task';
 import { FpcCommandManager } from './commands';
-import { CompileOption } from './languageServer/options';
-import { workspace, ExtensionContext, WorkspaceFolder, Uri } from 'vscode';
-import {
-	Executable,
-	LanguageClient,
-	LanguageClientOptions,
-	NotificationType,
-	ServerOptions,
-	ShowMessageNotification,
-	ShowMessageParams,
-	StreamInfo,
-	TransportKind
-} from 'vscode-languageclient';
-import * as net from 'net';
 import * as util from './common/util';
-import { log } from 'console';
-import { TextDecoder } from 'util';
-import path = require('path');
-import { resolve } from 'path';
 import {TLangClient} from './languageServer/client';
 import { configuration } from './common/configuration';
 

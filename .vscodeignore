@@ -1,4 +1,10 @@
 .vscode/**
 .gitignore
 media
+node_modules
+src
 .github
+**/tsconfig.json
+**/.eslintrc.json
+**/*.map
+**/*.ts
