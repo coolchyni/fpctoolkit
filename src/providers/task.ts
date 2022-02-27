@@ -293,7 +293,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	onOutput(lines: string) {
 		let ls = <string[]>lines.split('\n');
 		ls.forEach(line => {
-			let reg = /^([\w]+\.(p|pp|pas|lpr))\((\d+)\,(\d+)\)\s(Fatal|Error|Warning|Note):(.*)/;
+			let reg = /^([\w]+\.(p|pp|pas|lpr|dpr|inc))\((\d+)\,(\d+)\)\s(Fatal|Error|Warning|Note):(.*)/;
 			//reg.compile();
 
 			let matchs = reg.exec(line);
