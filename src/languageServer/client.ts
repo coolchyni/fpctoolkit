@@ -22,6 +22,8 @@ import { FpcProjectProvider } from '../providers/project';
 import * as util from '../common/util';
 import {InitializationOptions} from "./options";
 import { error } from 'console';
+import { env} from 'process';
+import * as fs from 'fs-extra';
 
 interface InputRegion {
     startLine: number;
@@ -47,24 +49,93 @@ function getLanguageServerFileName(): string {
     let extensionProcessName: string = 'pasls';
     const plat: NodeJS.Platform = process.platform;
     const arch = process.arch;
-    if (arch != 'x64') {
+    if (arch=== 'x64'){
+        if (plat === 'win32') {
+            extensionProcessName = 'x86_64-win64/pasls.exe';
+        } else if (plat === 'linux') {
+            extensionProcessName = 'x86_64-linux/pasls';
+        } else if (plat == 'darwin') {
+            extensionProcessName = 'x86_64-darwin/pasls';
+        }
+        else {
+            throw "Invalid Platform";
+        }
+    }else if(arch === 'arm64'){
+        if (plat === 'linux') {
+            extensionProcessName = 'aarch64-linux/pasls';
+        } else if (plat == 'darwin') {
+            extensionProcessName = 'aarch64-darwin/pasls';
+        }
+        else if (plat == 'win32') {
+            //use x64 
+            extensionProcessName = 'x86_64-win64/pasls.exe';
+        }else{
+            throw "Invalid Platform";
+        }
+    }else{
         throw "Invalid arch";
     }
-    if (plat === 'win32') {
-        extensionProcessName = 'x86_64-win64/pasls.exe';
-    } else if (plat === 'linux') {
-        extensionProcessName = 'x86_64-linux/pasls';
-    } else if (plat == 'darwin') {
-        extensionProcessName = 'x86_64-darwin/pasls';
-    }
-    else {
-        throw "Invalid Platform";
-    }
+   
     return path.resolve(util.getExtensionFilePath("bin"), extensionProcessName);
 }
 
 
+function GetEnvironmentVariables():{}{
+    // load environment variables from settings which are used for CodeTools
+    const plat = process.platform;
+    let userEnvironmentVariables = {};
+    let keys: string[] = ['PP', 'FPCDIR', 'LAZARUSDIR', 'FPCTARGET', 'FPCTARGETCPU'];
+    let settingEnvironmentVariables = workspace.getConfiguration('fpctoolkit.env');
+    Object.keys(settingEnvironmentVariables).forEach(key => {
+        if (keys.includes(key)) {
+            if (settingEnvironmentVariables[key]) {
+                userEnvironmentVariables[key] = settingEnvironmentVariables[key];
+            }
+        }
+    });
+    //set default value
+    let PP=settingEnvironmentVariables.get<string>('PP');
+    if(PP===undefined||PP==='') //not init
+    {
+        if(plat==='win32'){
+            ///3.2.2/bin/i386-win32/fpc.exe
+            //search lazarus
+            let dirs=['C:/lazarus/fpc','C:/FPC'];
+            let ver_test=/\d+\.\d+\.\d+/;
+            for (const _dir of dirs) {
+                if(fs.pathExistsSync(_dir)){
+                    let subdirs= fs.readdirSync(_dir);
+                    for (const fpcver of subdirs) {
+                       if(ver_test.test(fpcver)){ //found it 
+                            if(_dir.startsWith('C:/lazarus')){
+                                userEnvironmentVariables['LAZARUSDIR']='C:/lazarus';
+                            }
+                            userEnvironmentVariables['PP']=path.join(_dir,fpcver,'bin','i386-win32','fpc.exe');
+                            userEnvironmentVariables['FPCDIR']=path.join(_dir,fpcver,'source');
+                            env['PP']=userEnvironmentVariables['PP'];
+                            return userEnvironmentVariables;
+                       }
+                    }
+                }    
+            }  
+        }else{
+            let dirs=['/usr/bin/fpc','/usr/local/bin/fpc'];
+            let ver_test=new RegExp('\d+\.\d+\.\d+');
+            for (const _dir of dirs) {
+                if(fs.existsSync(_dir)){
+                    userEnvironmentVariables['PP']=_dir;
+                }    
+            }  
+            if(fs.existsSync('/usr/local/share/fpcsrc')){
+                userEnvironmentVariables['FPCDIR']='/usr/local/share/fpcsrc';   
+            }
+        }
+    }
 
+   
+    
+    return userEnvironmentVariables;
+}
 interface myConfiguration extends vscode.WorkspaceConfiguration {
     cwd: string;
 }
@@ -93,24 +164,10 @@ export class TLangClient {
 
         console.log("executable: " + executable);
 
-        // load environment variables from settings which are used for CodeTools
-        let userEnvironmentVariables = {};
-        let keys: string[] = ['PP', 'FPCDIR', 'LAZARUSDIR', 'FPCTARGET', 'FPCTARGETCPU'];
-        let settingEnvironmentVariables = workspace.getConfiguration('fpctoolkit.env');
-
-        Object.keys(settingEnvironmentVariables).forEach(key => {
-            if (keys.includes(key)) {
-                if (settingEnvironmentVariables[key]) {
-                    userEnvironmentVariables[key] = settingEnvironmentVariables[key];
-                }
-            }
-        });
-
-
         let run: Executable = {
             command: executable,
             options: {
-                env: userEnvironmentVariables
+                env: GetEnvironmentVariables()
             }
         };
         let debug: Executable = run;

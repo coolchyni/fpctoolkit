@@ -98,7 +98,7 @@ class FpcTask extends vscode.Task  {
 		// 	undefined,
 		// 	[]
 		// );
-		let fpcpath = configuration.get<string>('env.PP');
+		let fpcpath =process.env['PP'];//  configuration.get<string>('env.PP');
 		if(fpcpath===''){
 			fpcpath='fpc';
 		}

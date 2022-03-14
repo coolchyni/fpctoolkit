@@ -1,462 +1,464 @@
 {
-	"name": "fpctoolkit",
-	"displayName": "FreePascal Toolkit",
-	"description": "Free pascal compile and build.",
-	"version": "1.1.1",
-	"engines": {
-		"vscode": "^1.44.0"
-	},
-	"icon": "images/logo.png",
-	"categories": [
-		"Programming Languages"
-	],
-	"publisher": "coolchyni",
-	"author": {
-		"name": "coolchyni",
-		"email": "coolchyni@gmail.com"
-	},
-	"license": "MIT",
-	"keywords": [
-		"free",
-		"pascal",
-		"freepascal",
-		"fpc",
-		"lazarus",
-		"objectpascal",
-		"delphi"
-	],
-	"private": true,
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/coolchyni/fpctoolkit.git"
-	},
-	"bugs": {
-		"url": "https://github.com/coolchyni/fpctoolkit/issues"
-	},
-	"activationEvents": [
-		"onView:FpcProjectExplorer",
-		"onLanguage:objectpascal"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"languages": [
-			{
-				"id": "objectpascal",
-				"aliases": [
-					"Object-Pascal"
-				],
-				"extensions": [
-					".pas",
-					".pp",
-					".lpr",
-					".inc",
-					".p",
-					".dfm",
-					".fmx",
-					".dpr",
-					".dpk",
-					".lfm",
-					".dpr",
-					".lpr"
-				],
-				"configuration": "./pascal-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "objectpascal",
-				"scopeName": "source.pascal",
-				"path": "./syntaxes/fpc.tmLanguage"
-			},
-			{
-				"language": "pascal",
-				"scopeName": "source.pascal",
-				"path": "./syntaxes/fpc.tmLanguage"
-			}
-		],
-		"snippets": [
-			{
-				"language": "objectpascal",
-				"path": "./snippets/pascal.json"
-			},
-			{
-				"language": "pascal",
-				"path": "./snippets/pascal.json"
-			}
-		],
-		"commands": [
-			{
-				"command": "fpctoolkit.project.newproject",
-				"title": "Create new Fpc Project"
-			},
-			{
-				"command": "fpctoolkit.project.build",
-				"title": "%project.build%",
-				"icon": "$(play)"
-			},
-			{
-				"command": "fpctoolkit.project.clean",
-				"title": "%project.clear%"
-			},
-			{
-				"command": "fpctoolkit.project.opensetting",
-				"title": "%project.open%"
-			},
-			{
-				"command": "fpctoolkit.project.add",
-				"title": "%project.newconfig%"
-			}
-		],
-		"keybindings": [
-			{
-				"key": "ctrl+shift+down",
-				"command": "editor.action.goToImplementation",
-				"when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
-			},
-			{
-				"key": "ctrl+shift+up",
-				"command": "editor.action.goToImplementation",
-				"when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
-			}
-		],
-		"taskDefinitions": [
-			{
-				"type": "fpc",
-				"required": [
-					"file"
-				],
-				"properties": {
-					"file": {
-						"type": "string",
-						"description": "%task.file%"
-					},
-					"cwd": {
-						"type": "string",
-						"description": "%task.cwd%"
-					},
-					"cleanExt": {
-						"type": "string",
-						"description": "%task.cleanExt%"
-					},
-					"buildOption": {
-						"type": "object",
-						"properties": {
-							"targetOS": {
-								"type": "string",
-								"description": "%task.buildOption.targetOS%",
-								"examples": [
-									"linux",
-									"win32",
-									"win64",
-									"Darwin"
-								]
-							},
-							"targetCPU": {
-								"type": "string",
-								"description": "%task.buildOption.targetCPU%",
-								"examples": [
-									"x86_64",
-									"aarch64",
-									"i386"
-								]
-							},
-							"searchPath": {
-								"type": "array",
-								"description": "%task.buildOption.searchPath%",
-								"items": {
-									"type": "string"
-								}
-							},
-							"libPath": {
-								"type": "array",
-								"description": "%task.buildOption.libPath%",
-								"items": {
-									"type": "string"
-								}
-							},
-							"unitOutputDir": {
-								"type": "string",
-								"description": "%task.buildOption.unitOutputDir%"
-							},
-							"outputFile": {
-								"type": "string",
-								"description": "%task.buildOption.outputFile%"
-							},
-							"syntaxMode": {
-								"type": "string",
-								"description": "%task.buildOption.syntaxMode%",
-								"default": "ObjFPC",
-								"examples": [
-									"fpc",
-									"Delphi",
-									"DelphiUnicode",
-									"ObjFPC"
-								]
-							},
-							"optimizationLevel": {
-								"type": "number",
-								"description": "%task.buildOption.optimizationLevel%",
-								"enum": [
-									1,
-									2,
-									3,
-									4
-								]
-							},
-							"customOptions": {
-								"type": "array",
-								"items": {
-									"type": "string"
-								},
-								"description": "%task.buildOption.customOptions%"
-							}
-						}
-					}
-				}
-			}
-		],
-		"menus": {
-			"view/item/context": [
-				{
-					"command": "fpctoolkit.project.build",
-					"when": "view == FpcProjectExplorer && viewItem==fpcbuild",
-					"group": "fpcproject@1"
-				},
-				{
-					"command": "fpctoolkit.project.clean",
-					"when": "view == FpcProjectExplorer && viewItem==fpcbuild",
-					"group": "fpcproject@2"
-				},
-				{
-					"command": "fpctoolkit.project.add",
-					"when": "view == FpcProjectExplorer && viewItem==fpcproject",
-					"group": "fpcproject@0"
-				},
-				{
-					"command": "fpctoolkit.project.build",
-					"when": "view == FpcProjectExplorer && viewItem==fpcbuild",
-					"group": "inline"
-				}
-			]
-		},
-		"configuration": [
-			{
-				"title": "FpcToolkit",
-				"properties": {
-					"fpctoolkit.searchPath": {
-						"type": "array",
-						"description": "%config.searchPath%",
-						"items": {
-							"type": "string"
-						}
-					},
-					"fpctoolkit.libPath": {
-						"type": "array",
-						"description": "%config.libPath%",
-						"items": {
-							"type": "string"
-						}
-					},
-					"fpctoolkit.customOptions": {
-						"type": "array",
-						"items": {
-							"type": "string"
-						},
-						"description": "%config.customOptions%"
-					},
-					"fpctoolkit.env.PP": {
-						"type": "string",
-						"markdownDescription": "%config.env.PP%"
-					},
-					"fpctoolkit.env.FPCDIR": {
-						"type": "string",
-						"default": "/usr/local/share/fpcsrc",
-						"markdownDescription": "%config.env.FPCDIR%"
-					},
-					"fpctoolkit.env.LAZARUSDIR": {
-						"type": "string",
-						"markdownDescription": "%config.env.LAZARUSDIR%"
-					},
-					"fpctoolkit.env.FPCTARGET": {
-						"type": "string",
-						"markdownDescription": "%config.env.FPCTARGET%"
-					},
-					"fpctoolkit.env.FPCTARGETCPU": {
-						"type": "string",
-						"markdownDescription": "%config.env.FPCTARGETCPU%"
-					},
-					"fpctoolkit.format.tabsize": {
-						"type": "number",
-						"default": 2,
-						"markdownDescription": "%config.format.tabsize%"
-					}
-				}
-			},
-			{
-				"title": "FpcToolkit LanguageServer",
-				"properties": {
-					"fpctoolkit.lsp.trace.server": {
-						"scope": "window",
-						"type": "string",
-						"enum": [
-							"off",
-							"messages",
-							"verbose"
-						],
-						"default": "off",
-						"description": "%lsp.trace.server%"
-					},
-					"fpctoolkit.lsp.initializationOptions.program": {
-						"type": "string",
-						"description": "%lsp.initializationOptions.program%"
-					},
-					"fpctoolkit.lsp.initializationOptions.overloadPolicy": {
-						"type": "number",
-						"scope": "application",
-						"default": 3,
-						"enum": [
-							1,
-							2,
-							3
-						],
-						"enumDescriptions": [
-							"%lsp.enum.overloadPolicy_1%",
-							"%lsp.enum.overloadPolicy_2%",
-							"%lsp.enum.overloadPolicy_3%"
-						],
-						"description": "%lsp.initializationOptions.overloadPolicy%"
-					},
-					"fpctoolkit.lsp.initializationOptions.maximumCompletions": {
-						"type": "number",
-						"scope": "application",
-						"default": 100,
-						"markdownDescription": "%lsp.initializationOptions.maximumCompletions%"
-					},
-					"fpctoolkit.lsp.initializationOptions.insertCompletionsAsSnippets": {
-						"type": "boolean",
-						"scope": "application",
-						"default": false,
-						"description": "%lsp.initializationOptions.insertCompletionsAsSnippets%"
-					},
-					"fpctoolkit.lsp.initializationOptions.insertCompletionProcedureBrackets": {
-						"type": "boolean",
-						"default": false,
-						"description": "%lsp.initializationOptions.insertCompletionProcedureBrackets%"
-					},
-					"fpctoolkit.lsp.initializationOptions.includeWorkspaceFoldersAsUnitPaths": {
-						"type": "boolean",
-						"default": true,
-						"description": "%lsp.initializationOptions.includeWorkspaceFoldersAsUnitPaths%"
-					},
-					"fpctoolkit.lsp.initializationOptions.includeWorkspaceFoldersAsIncludePaths": {
-						"type": "boolean",
-						"scope": "application",
-						"default": true,
-						"description": "%lsp.initializationOptions.includeWorkspaceFoldersAsIncludePaths%"
-					},
-					"fpctoolkit.lsp.initializationOptions.checkSyntax": {
-						"type": "boolean",
-						"scope": "application",
-						"default": false,
-						"description": "%lsp.initializationOptions.checkSyntax%"
-					},
-					"fpctoolkit.lsp.initializationOptions.publishDiagnostics": {
-						"type": "boolean",
-						"scope": "application",
-						"default": false,
-						"description": "%lsp.initializationOptions.publishDiagnostics%"
-					},
-					"fpctoolkit.lsp.initializationOptions.workspaceSymbols": {
-						"type": "boolean",
-						"default": false,
-						"description": "%lsp.initializationOptions.workspaceSymbols%"
-					},
-					"fpctoolkit.lsp.initializationOptions.documentSymbols": {
-						"type": "boolean",
-						"scope": "application",
-						"default": true,
-						"description": "%lsp.initializationOptions.documentSymbols%"
-					},
-					"fpctoolkit.lsp.initializationOptions.minimalisticCompletions": {
-						"type": "boolean",
-						"scope": "application",
-						"default": false,
-						"description": "%lsp.initializationOptions.minimalisticCompletions%"
-					},
-					"fpctoolkit.lsp.initializationOptions.showSyntaxErrors": {
-						"type": "boolean",
-						"scope": "application",
-						"default": true,
-						"markdownDescription": "%lsp.initializationOptions.showSyntaxErrors%"
-					}
-				}
-			}
-		],
-		"views": {
-			"explorer": [
-				{
-					"id": "FpcProjectExplorer",
-					"name": "FPC Projects"
-				}
-			]
-		},
-		"viewsWelcome": [
-			{
-				"view": "FpcProjectExplorer",
-				"contents": "%views.welcome%",
-				"when": "!workspace.workspaceFolders"
-			}
-		],
-		"problemMatchers": [
-			{
-				"name": "fpc",
-				"owner": "external",
-				"pattern": [
-					{
-						"regexp": "Compiling ([^\\s].*(p|pp|pas|lpr))$",
-						"file": 1
-					},
-					{
-						"regexp": "^([\\w]+\\.(p|pp|pas|lpr))\\((\\d+)\\,(\\d+)\\)\\s(Fatal|Error|Warning|Note):(.*)",
-						"line": 3,
-						"column": 4,
-						"severity": 5,
-						"message": 6,
-						"loop": true
-					}
-				]
-			}
-		]
-	},
-	"scripts": {
-		"compile": "tsc -p ./",
-		"lint": "eslint src --ext ts",
-		"watch": "tsc -watch -p ./",
-		"package": "vsce package",
-		"publish": "vsce publish",
-		"vscode:prepublish": "npm run -S esbuild-base -- --minify",
-		"esbuild-base": "rimraf out &&  esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs  --platform=node",
-		"esbuild": "npm run -S esbuild-base -- --sourcemap",
-		"esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch"
-	},
-	"dependencies": {
-		"@types/fs-extra": "9.0.2",
-		"fs-extra": "9.0.1",
-		"vscode-languageclient": "^6.1.4",
-		"vscode-nls": "^3.2.5"
-	},
-	"devDependencies": {
-		"@types/glob": "^7.2.0",
-		"@types/mocha": "^7.0.2",
-		"@types/node": "^13.13.52",
-		"@types/vscode": "^1.44.0",
-		"@typescript-eslint/eslint-plugin": "^2.30.0",
-		"@typescript-eslint/parser": "^2.30.0",
-		"esbuild": "^0.14.23",
-		"rimraf": "^3.0.2",
-		"eslint": "^6.8.0",
-		"glob": "^7.2.0",
-		"mocha": "^7.1.2",
-		"typescript": "^3.9.10"
-	}
+  "name": "fpctoolkit",
+  "displayName": "FreePascal Toolkit",
+  "description": "Free pascal compile and build.",
+  "version": "1.1.2",
+  "engines": {
+    "vscode": "^1.44.0"
+  },
+  "icon": "images/logo.png",
+  "categories": [
+    "Programming Languages"
+  ],
+  "publisher": "coolchyni",
+  "author": "coolchyni <coolchyni@gmail.com>",
+  "license": "MIT",
+  "keywords": [
+    "free",
+    "pascal",
+    "freepascal",
+    "fpc",
+    "lazarus",
+    "objectpascal",
+    "delphi"
+  ],
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coolchyni/fpctoolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/coolchyni/fpctoolkit/issues"
+  },
+  "activationEvents": [
+    "onView:FpcProjectExplorer",
+    "onLanguage:objectpascal"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "objectpascal",
+        "aliases": [
+          "Object-Pascal"
+        ],
+        "extensions": [
+          ".pas",
+          ".pp",
+          ".lpr",
+          ".inc",
+          ".p",
+          ".dfm",
+          ".fmx",
+          ".dpr",
+          ".dpk",
+          ".lfm",
+          ".dpr",
+          ".lpr"
+        ],
+        "configuration": "./pascal-configuration.json"
+      },
+      {
+        "id": "pascal",
+        "configuration": "./pascal-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "objectpascal",
+        "scopeName": "source.pascal",
+        "path": "./syntaxes/fpc.tmLanguage"
+      },
+      {
+        "language": "pascal",
+        "scopeName": "source.pascal",
+        "path": "./syntaxes/fpc.tmLanguage"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "objectpascal",
+        "path": "./snippets/pascal.json"
+      },
+      {
+        "language": "pascal",
+        "path": "./snippets/pascal.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "fpctoolkit.project.newproject",
+        "title": "Create new Fpc Project"
+      },
+      {
+        "command": "fpctoolkit.project.build",
+        "title": "%project.build%",
+        "icon": "$(play)"
+      },
+      {
+        "command": "fpctoolkit.project.clean",
+        "title": "%project.clear%"
+      },
+      {
+        "command": "fpctoolkit.project.opensetting",
+        "title": "%project.open%"
+      },
+      {
+        "command": "fpctoolkit.project.add",
+        "title": "%project.newconfig%"
+      }
+    ],
+    "keybindings": [
+      {
+        "key": "ctrl+shift+down",
+        "command": "editor.action.goToImplementation",
+        "when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
+      },
+      {
+        "key": "ctrl+shift+up",
+        "command": "editor.action.goToImplementation",
+        "when": "editorHasImplementationProvider && editorTextFocus && !isInEmbeddedEditor"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "fpc",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "%task.file%"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "%task.cwd%"
+          },
+          "cleanExt": {
+            "type": "string",
+            "description": "%task.cleanExt%"
+          },
+          "buildOption": {
+            "type": "object",
+            "properties": {
+              "targetOS": {
+                "type": "string",
+                "description": "%task.buildOption.targetOS%",
+                "examples": [
+                  "linux",
+                  "win32",
+                  "win64",
+                  "Darwin"
+                ]
+              },
+              "targetCPU": {
+                "type": "string",
+                "description": "%task.buildOption.targetCPU%",
+                "examples": [
+                  "x86_64",
+                  "aarch64",
+                  "i386"
+                ]
+              },
+              "searchPath": {
+                "type": "array",
+                "description": "%task.buildOption.searchPath%",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "libPath": {
+                "type": "array",
+                "description": "%task.buildOption.libPath%",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "unitOutputDir": {
+                "type": "string",
+                "description": "%task.buildOption.unitOutputDir%"
+              },
+              "outputFile": {
+                "type": "string",
+                "description": "%task.buildOption.outputFile%"
+              },
+              "syntaxMode": {
+                "type": "string",
+                "description": "%task.buildOption.syntaxMode%",
+                "default": "ObjFPC",
+                "examples": [
+                  "fpc",
+                  "Delphi",
+                  "DelphiUnicode",
+                  "ObjFPC"
+                ]
+              },
+              "optimizationLevel": {
+                "type": "number",
+                "description": "%task.buildOption.optimizationLevel%",
+                "enum": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "customOptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "%task.buildOption.customOptions%"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "fpctoolkit.project.build",
+          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "group": "fpcproject@1"
+        },
+        {
+          "command": "fpctoolkit.project.clean",
+          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "group": "fpcproject@2"
+        },
+        {
+          "command": "fpctoolkit.project.add",
+          "when": "view == FpcProjectExplorer && viewItem==fpcproject",
+          "group": "fpcproject@0"
+        },
+        {
+          "command": "fpctoolkit.project.build",
+          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "FpcToolkit",
+        "properties": {
+          "fpctoolkit.searchPath": {
+            "type": "array",
+            "description": "%config.searchPath%",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fpctoolkit.libPath": {
+            "type": "array",
+            "description": "%config.libPath%",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fpctoolkit.customOptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "%config.customOptions%"
+          },
+          "fpctoolkit.env.PP": {
+            "type": "string",
+            "markdownDescription": "%config.env.PP%"
+          },
+          "fpctoolkit.env.FPCDIR": {
+            "type": "string",
+            "markdownDescription": "%config.env.FPCDIR%"
+          },
+          "fpctoolkit.env.LAZARUSDIR": {
+            "type": "string",
+            "markdownDescription": "%config.env.LAZARUSDIR%"
+          },
+          "fpctoolkit.env.FPCTARGET": {
+            "type": "string",
+            "markdownDescription": "%config.env.FPCTARGET%"
+          },
+          "fpctoolkit.env.FPCTARGETCPU": {
+            "type": "string",
+            "markdownDescription": "%config.env.FPCTARGETCPU%"
+          },
+          "fpctoolkit.format.tabsize": {
+            "type": "number",
+            "default": 2,
+            "markdownDescription": "%config.format.tabsize%"
+          }
+        }
+      },
+      {
+        "title": "FpcToolkit LanguageServer",
+        "properties": {
+          "fpctoolkit.lsp.trace.server": {
+            "scope": "window",
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "off",
+            "description": "%lsp.trace.server%"
+          },
+          "fpctoolkit.lsp.initializationOptions.program": {
+            "type": "string",
+            "description": "%lsp.initializationOptions.program%"
+          },
+          "fpctoolkit.lsp.initializationOptions.overloadPolicy": {
+            "type": "number",
+            "scope": "application",
+            "default": 3,
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "enumDescriptions": [
+              "%lsp.enum.overloadPolicy_1%",
+              "%lsp.enum.overloadPolicy_2%",
+              "%lsp.enum.overloadPolicy_3%"
+            ],
+            "description": "%lsp.initializationOptions.overloadPolicy%"
+          },
+          "fpctoolkit.lsp.initializationOptions.maximumCompletions": {
+            "type": "number",
+            "scope": "application",
+            "default": 100,
+            "markdownDescription": "%lsp.initializationOptions.maximumCompletions%"
+          },
+          "fpctoolkit.lsp.initializationOptions.insertCompletionsAsSnippets": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%lsp.initializationOptions.insertCompletionsAsSnippets%"
+          },
+          "fpctoolkit.lsp.initializationOptions.insertCompletionProcedureBrackets": {
+            "type": "boolean",
+            "default": false,
+            "description": "%lsp.initializationOptions.insertCompletionProcedureBrackets%"
+          },
+          "fpctoolkit.lsp.initializationOptions.includeWorkspaceFoldersAsUnitPaths": {
+            "type": "boolean",
+            "default": true,
+            "description": "%lsp.initializationOptions.includeWorkspaceFoldersAsUnitPaths%"
+          },
+          "fpctoolkit.lsp.initializationOptions.includeWorkspaceFoldersAsIncludePaths": {
+            "type": "boolean",
+            "scope": "application",
+            "default": true,
+            "description": "%lsp.initializationOptions.includeWorkspaceFoldersAsIncludePaths%"
+          },
+          "fpctoolkit.lsp.initializationOptions.checkSyntax": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%lsp.initializationOptions.checkSyntax%"
+          },
+          "fpctoolkit.lsp.initializationOptions.publishDiagnostics": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%lsp.initializationOptions.publishDiagnostics%"
+          },
+          "fpctoolkit.lsp.initializationOptions.workspaceSymbols": {
+            "type": "boolean",
+            "default": false,
+            "description": "%lsp.initializationOptions.workspaceSymbols%"
+          },
+          "fpctoolkit.lsp.initializationOptions.documentSymbols": {
+            "type": "boolean",
+            "scope": "application",
+            "default": true,
+            "description": "%lsp.initializationOptions.documentSymbols%"
+          },
+          "fpctoolkit.lsp.initializationOptions.minimalisticCompletions": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%lsp.initializationOptions.minimalisticCompletions%"
+          },
+          "fpctoolkit.lsp.initializationOptions.showSyntaxErrors": {
+            "type": "boolean",
+            "scope": "application",
+            "default": true,
+            "markdownDescription": "%lsp.initializationOptions.showSyntaxErrors%"
+          }
+        }
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "FpcProjectExplorer",
+          "name": "FPC Projects"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "FpcProjectExplorer",
+        "contents": "%views.welcome%",
+        "when": "!workspace.workspaceFolders"
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "fpc",
+        "owner": "external",
+        "pattern": [
+          {
+            "regexp": "Compiling ([^\\s].*(p|pp|pas|lpr))$",
+            "file": 1
+          },
+          {
+            "regexp": "^([\\w]+\\.(p|pp|pas|lpr))\\((\\d+)\\,(\\d+)\\)\\s(Fatal|Error|Warning|Note):(.*)",
+            "line": 3,
+            "column": 4,
+            "severity": 5,
+            "message": 6,
+            "loop": true
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "vscode:prepublish": "npm run -S esbuild-base -- --minify",
+    "esbuild-base": "rimraf out &&  esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs  --platform=node",
+    "esbuild": "npm run -S esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch"
+  },
+  "dependencies": {
+    "@types/fs-extra": "9.0.2",
+    "fs-extra": "9.0.1",
+    "tsc": "^2.0.4",
+    "vscode-languageclient": "^6.1.4",
+    "vscode-nls": "^3.2.5"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.2.0",
+    "@types/mocha": "^7.0.2",
+    "@types/node": "^13.13.52",
+    "@types/vscode": "^1.44.0",
+    "@typescript-eslint/eslint-plugin": "^2.30.0",
+    "@typescript-eslint/parser": "^2.30.0",
+    "esbuild": "^0.14.23",
+    "eslint": "^8.10.0",
+    "glob": "^7.2.0",
+    "mocha": "^9.2.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.9.10"
+  },
+  "homepage": "https://github.com/coolchyni/fpctoolkit#readme"
 }
