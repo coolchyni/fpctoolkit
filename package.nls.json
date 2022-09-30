@@ -1,11 +1,13 @@
 {
     "project.build": "Build",
+    "project.rebuild": "ReBuild",
     "project.clear": "Clear",
     "project.open": "Open",
     "project.newconfig": "New Build Config",
+    "project.setdefault": "Set As Default",
     "task.file": "The project file of FPC. (.lpr,.dpr)",
     "task.cwd": "Current path. Use wrokspace root if null.",
-    "task.cleanExt": "file extensions for clean file in unitOutputDir. use * for clear all file. default:(.o,.ppu)",
+    "task.cleanExt": "file extensions for clean file in unitOutputDir. use * for clear all file. default:(.o,.ppu,.lfm,.a,.or,.res)",
     "task.buildOption.targetOS": "Target OS (-T)",
     "task.buildOption.targetCPU": "Target cpu family (-P)",
     "task.buildOption.searchPath": "Searchpath for units and other system dependent things.(-Fu)",
@@ -15,14 +17,16 @@
     "task.buildOption.syntaxMode": "Syntax Mode  (-M,{$mode})",
     "task.buildOption.optimizationLevel": "Optimization levels (-O)",
     "task.buildOption.customOptions": "Custom compile options for fpc.",
+    "task.inherited":"Task name inheried from.",
     "config.searchPath": "Searchpath for units.(-Fu)",
     "config.libPath": "Searchpath for libraries.(-Fl)",
     "config.customOptions": "Custom compile options for fpc.",
     "config.env.PP": "Path to compiler (i.e. `/usr/bin/fpc`, `/usr/bin/ppc386`)",
     "config.env.FPCDIR": "Path to FPC sources such as `/usr/local/share/fpcsrc`",
     "config.env.LAZARUSDIR": "Path to Lazarus sources as `/usr/local/share/lazsrc`",
-    "config.env.FPCTARGET": "Target platform (`windows`, `linux`, `darwin`)",
+    "config.env.FPCTARGET": "Target platform (`win32`,`win64`, `linux`, `darwin`)",
     "config.env.FPCTARGETCPU": "Target CPU such as `x86_64`",
+    "config.pasls.path": "Pascal Language Server(pasls) file path.",
     "lsp.trace.server": "Traces the communication between VS Code and the language server.",
     "lsp.initializationOptions.program": "Path to the main program file for resolving references (if not available the path of the current document will be used)",
     "lsp.initializationOptions.overloadPolicy": "Policy which determines how overloaded document symbols are displayed",
@@ -43,5 +47,8 @@
 
     "views.welcome":"No fpc projects found.\n[Create New Project](command:fpctoolkit.project.newproject)",
 
-    "config.format.tabsize": "Table space size."
+    "config.format.tabsize": "Table space size.",
+    "config.format.enabled": "Enable jedi formatter.",
+    "config.format.cfgpath": "The path of jcfsettings.cfg."
+
 }

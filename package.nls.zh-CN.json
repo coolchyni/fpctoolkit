@@ -1,11 +1,13 @@
 {
 	"project.build": "构建项目",
+    "project.rebuild": "清理和构建",
 	"project.clear": "清理项目",
     "project.open":  "打开",
     "project.newconfig": "创建新的配置",
+    "project.setdefault": "设置为默认任务",
     "task.file": "Free Pascal 项目文件. (.lpr,.dpr)",
     "task.cwd": "当前工作目录. 如果不设置默认使用vscode工作目录.",
-    "task.cleanExt": "指定执行清理项目时需要清除的文件名后缀. 输入* 表示清除所有文件. 默认(.o,.ppu)",
+    "task.cleanExt": "指定执行清理项目时需要清除的文件名后缀. 输入* 表示清除所有文件. 默认(.o,.ppu,.lfm,.a,.or,.res)",
     "task.buildOption.targetOS": "目标操作系统 (-T)",
     "task.buildOption.targetCPU": "目标CPU族 (-P)",
     "task.buildOption.searchPath": "单元文件搜索路径.(-Fu)",
@@ -15,14 +17,16 @@
     "task.buildOption.syntaxMode": "语法模式 (-M,{$mode})",
     "task.buildOption.optimizationLevel": "代码优化级别 (-O)",
     "task.buildOption.customOptions": "自定义编译选项.",
+    "task.inherited":"继承任务的名称.",
     "config.searchPath": "单元文件搜索路径.(-Fu)",
     "config.libPath": "库搜索路径.(-Fl)",
     "config.customOptions": "自定义选项.",
     "config.env.PP": "编译器位置 (i.e. `/usr/bin/fpc`, `/usr/bin/ppc386`)",
     "config.env.FPCDIR": "Free Pascal 源代码位置 如:`/usr/local/share/fpcsrc`",
     "config.env.LAZARUSDIR": "Lazarus 源代码位置 如:`/usr/local/share/lazsrc`",
-    "config.env.FPCTARGET": "目标操作系统 如: (`windows`, `linux`, `darwin`)",
+    "config.env.FPCTARGET": "目标操作系统 如: (`win32`,`win64`, `linux`, `darwin`)",
     "config.env.FPCTARGETCPU": "目标CPU族 如: `x86_64`",
+    "config.pasls.path": "Pascal Language Server(pasls) 文件位置.",
     "lsp.trace.server": "跟踪  VS Code 和 pascal language server之间的通讯信息.",
     "lsp.initializationOptions.program": "主程序文件.如果未指定，则使用当前文件.",
     "lsp.initializationOptions.overloadPolicy": "指定重复的函数或定义如何显示",
@@ -42,5 +46,7 @@
     "lsp.enum.overloadPolicy_3": "名称前添加编号",
 
     "views.welcome":"没有发现工程文件.\n[创建新项目](command:fpctoolkit.project.newproject)",
-    "config.format.tabsize": "制表符(tab)转空格数."
+    "config.format.tabsize": "制表符(tab)转空格数.",
+    "config.format.enabled": "启用源码格式化(使用Jedi).",
+    "config.format.cfgpath": "格式化配置文件路径(jcfsettings.cfg)."
 }

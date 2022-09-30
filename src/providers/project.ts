@@ -4,10 +4,13 @@ import * as path from 'path';
 import { basename, normalize } from 'path';
 import { CompileOption, TaskInfo } from '../languageServer/options';
 import { openStdin } from 'process';
-import { FpcTaskDefinition } from './task';
+import { FpcTaskDefinition, FpcTaskProvider, taskProvider } from './task';
 import { Command } from 'vscode-languageserver-types';
 //import { visit, JSONVisitor } from "jsonc-parser";
 import { pathExists } from 'fs-extra';
+import { Event } from 'vscode-languageclient';
+import { clearTimeout } from 'timers';
+import { TIMEOUT } from 'dns';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
@@ -16,14 +19,22 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	private watch!: vscode.FileSystemWatcher;
 	private watchlpr!: vscode.FileSystemWatcher;
 	public defaultFtpItem?: FpcItem = undefined;
+	private config!:vscode.WorkspaceConfiguration;
+	private defaultCompileOption?:CompileOption=undefined;
+	private timeout?:NodeJS.Timeout=undefined;
 	constructor(private workspaceRoot: string, context: vscode.ExtensionContext) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
 		subscriptions.push(vscode.commands.registerCommand(name + ".open", async (item: FpcItem) => { await this.open(item); }, this));
 
 		this.watch = vscode.workspace.createFileSystemWatcher("**/tasks.json", true);
-		this.watch.onDidChange((url) => {
-			this.refresh();
+		this.watch.onDidChange(async (url) => {
+			if(this.timeout!=undefined){
+				clearTimeout(this.timeout);
+			}
+			this.timeout=setTimeout(()=>{
+				this.checkDefaultAndRefresh();
+			},1000);
 		});
 		this.watch.onDidDelete(() => {
 			this.refresh();
@@ -50,6 +61,24 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		this._onDidChangeTreeData.fire();
 	}
 
+	async checkDefaultAndRefresh():Promise<void>{
+		let oldCompileOption=this.defaultCompileOption;
+		if(oldCompileOption==undefined){
+			taskProvider.refresh();
+			this.refresh();
+			return;
+		}
+
+		//default task setting changed 
+		let newCompileOption=await this.GetDefaultTaskOption();
+		if(oldCompileOption.toOptionString()!=newCompileOption.toOptionString()){
+			taskProvider.refresh();
+		}
+		this.refresh();
+
+		
+
+	}
 	getTreeItem(element: FpcItem): vscode.TreeItem {
 		return element;
 	}
@@ -80,13 +109,13 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			//root node 
 
 			var itemMaps: Map<string, FpcItem> = new Map();
-			let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+			this.config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
 			//create info for pass tasks as pointer
 			//var info =new TaskInfo();
 			//info.tasks=config.tasks;
 
 
-			config?.tasks?.forEach((e: any) => {
+			this.config?.tasks?.forEach((e: any) => {
 				if (e.type === 'fpc') {
 					if (!itemMaps.has(e.file)) {
 						itemMaps.set(
@@ -161,31 +190,31 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		return Promise.resolve([]);
 
 	}
+	async GetDefaultTaskOption(): Promise<CompileOption>  {
+		
+		//refresh tasks
+		await vscode.tasks.fetchTasks({type:'fpc'});
 
-	GetDefaultTaskOption(): CompileOption | undefined {
-		let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+		let cfg=vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
 		let opt: CompileOption|undefined=undefined;
-		if (config?.tasks != undefined) {
-			for (const e of config?.tasks) {
+		if (cfg?.tasks != undefined) {
+			for (const e of cfg?.tasks) {
 				if (e.type === 'fpc') {
-					opt = new CompileOption(e.file, e.file);
-					opt.buildOption = e.buildOption;
-					if (e.cwd) {
-						opt.cwd = path.join(this.workspaceRoot, e.cwd);
-					} else {
-						opt.cwd = this.workspaceRoot;
-					}
+					
 					if (e.group?.isDefault) {
-
+						let def=taskProvider.GetTaskDefinition(e.label);
+						
+						opt = new CompileOption(def,this.workspaceRoot);
+						this.defaultCompileOption=opt;
 						return opt;
 					}
 				}
 			}
 		}
 		if(!opt){
-			opt=new CompileOption('','');
+			opt=new CompileOption();
 		}
-
+		this.defaultCompileOption=opt;
 		return opt;
 	}
 	private findJsonDocumentPosition(documentText: string, taskItem: FpcItem) {

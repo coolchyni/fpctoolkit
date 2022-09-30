@@ -3,6 +3,13 @@ import { FpcItem } from './providers/project';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
+import { FpcTask, FpcTaskProvider, taskProvider } from './providers/task';
+import { CompileOption } from './languageServer/options';
+import { configuration } from './common/configuration'
+import { type } from 'os';
+import { client } from './extension';
+import { TextEditor, TextEditorEdit } from 'vscode';
+
 
 export class FpcCommandManager {
     constructor(private workspaceRoot: string) {
@@ -10,12 +17,16 @@ export class FpcCommandManager {
     }
     registerAll(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.build', this.ProjectBuild));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.rebuild', this.ProjectReBuild));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.clean', this.projectClean));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.opensetting', this.ProjectOpen));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
+        
+        context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete',this.CodeComplete));
     }
-    ProjectAdd=async (node: FpcItem) =>{
+    ProjectAdd = async (node: FpcItem) => {
         if (node.level === 0) {
             let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
             let inp = await vscode.window.showQuickPick(['debug', 'release', 'other...'], { canPickMany: false });
@@ -72,7 +83,7 @@ export class FpcCommandManager {
         }
 
     };
-    ProjectBuild=async (node: FpcItem) =>{
+    ProjectBuild = async (node: FpcItem) => {
         if (node.level === 0) {
 
         } else {
@@ -81,6 +92,7 @@ export class FpcCommandManager {
                     //vscode.window.showInformationMessage(task.name);
                     if (task.name === node.label) {
                         vscode.tasks.executeTask(task);
+
                         return;
                     }
 
@@ -90,6 +102,12 @@ export class FpcCommandManager {
         }
 
     };
+
+    ProjectReBuild = async (node: FpcItem) => {
+        await this.projectClean(node);
+        this.ProjectBuild(node);
+
+    };
     ProjectOpen = async (node?: FpcItem) => {
 
         let file = path.join(this.workspaceRoot, ".vscode", "tasks.json");
@@ -97,7 +115,7 @@ export class FpcCommandManager {
         let te = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
 
     };
-    ProjectNew =async () => {
+    ProjectNew = async () => {
 
         let s = `program main;
 begin 
@@ -151,51 +169,89 @@ end.`;
         );
 
     };
-    projectClean=async (node: FpcItem) =>{
-        if (!node.tasks) { return; }
-        let dir = (node.tasks[0]).buildOption?.unitOutputDir;
+    projectClean = async (node: FpcItem) => {
+
+        let definition = taskProvider.GetTaskDefinition(node.label);
+
+        let dir = definition?.buildOption?.unitOutputDir;
         if (!dir) { return; }
-        if(!path.isAbsolute(dir)){
-            if(node.tasks[0].cwd){
-                dir = path.join(node.tasks[0].cwd, dir);
-            }else{
+        if (!path.isAbsolute(dir)) {
+
+            if (definition?.cwd) {
+                let cur_dir=definition.cwd;
+                if(cur_dir.startsWith('./') || cur_dir.startsWith('.\\')){
+                    cur_dir=path.join(this.workspaceRoot,definition.cwd);
+                }
+                dir = path.join(cur_dir, dir);
+            } else {
                 dir = path.join(this.workspaceRoot, dir);
             }
         }
-       
-        let cleanExt=node.tasks[0].cleanExt;
+
+        let cleanExt = definition?.cleanExt;
         if (fs.existsSync(dir)) {
             try {
-                let exts=['.o','.ppu'];
-                let isall=false;
-                if(cleanExt){
-                    if((<String>cleanExt).trim()=='*'){
-                        isall=true;
+                let exts = ['.o', '.ppu', '.lfm', '.a', '.or', '.res','.rsj'];
+                let isall = false;
+                if (cleanExt) {
+                    if ((<String>cleanExt).trim() == '*') {
+                        isall = true;
                     }
-                    let tmps=(<String>cleanExt).split(',');
+                    let tmps = (<String>cleanExt).split(',');
                     for (const s of tmps) {
                         exts.push(s);
                     }
                 }
                 let files = fs.readdirSync(dir);
-				for (let index = 0; index < files.length; index++) {
-					let file = files[index].toLowerCase();
-                    let ext=path.extname(file);
-                        
-                    if(isall || exts.includes(ext)){
-                        try{
-                            fs2.removeSync(path.join(dir,file));
-                        }catch{
+                for (let index = 0; index < files.length; index++) {
+                    let file = files[index].toLowerCase();
+                    let ext = path.extname(file);
+
+                    if (isall || exts.includes(ext)) {
+                        try {
+                            fs2.removeSync(path.join(dir, file));
+                        } catch {
 
                         }
-                        
+
                     }
                 }
-	
-            } catch{
+
+            } catch {
 
             }
-        };
-
+        }
     };
+
+    projectSetDefault = async (node: FpcItem) => {
+        let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+        let tasks=config.tasks;
+        for (const task of tasks) {
+            if(task.label===node.label){
+                if(typeof(task.group)==='object'){
+                    task.group.isDefault=true;    
+                }else{
+                    task.group={kind:task.group,isDefault:true};
+                }
+                client.restart();
+            }else{
+                if(typeof(task.group)==='object'){
+                    task.group.isDefault=undefined;
+                }
+            }
+           
+
+        }
+        config.update(
+            "tasks",
+            tasks,
+            vscode.ConfigurationTarget.WorkspaceFolder
+        );
+    }
+
+
+    CodeComplete= async (textEditor: TextEditor, edit: TextEditorEdit) => {
+        client.doCodeComplete(textEditor);
+      
+    }
 }
