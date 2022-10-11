@@ -5,3 +5,4 @@ out
 package-lock.json
 *.mov
 .DS_Store
+req.txt

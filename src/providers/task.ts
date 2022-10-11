@@ -192,7 +192,7 @@ export class FpcTask extends vscode.Task  {
 class FpcCustomExecution extends vscode.CustomExecution {
 
 }
-var diagCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('fpc');
+export var diagCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('fpc');
 
 class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitStatus {
 	private writeEmitter = new vscode.EventEmitter<string>();
@@ -367,7 +367,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			case 'Warning':
 				return vscode.DiagnosticSeverity.Warning;
 			case 'Note':
-				return vscode.DiagnosticSeverity.Hint;
+				return vscode.DiagnosticSeverity.Information;
 			default:
 				return vscode.DiagnosticSeverity.Information;
 		}
@@ -386,7 +386,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			// }
 
 
-			let reg = /^(([\w]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note):(.*)/;
+			let reg = /^(([\w-:\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note):(.*)/;
 			//reg.compile();
 
 			let matchs = reg.exec(line);
@@ -394,7 +394,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			if (matchs) {
 				
 				let ln = Number(matchs[5]);
-				let col = Number(matchs[6]);
+				let col = Number(matchs[7]);
 				let file = matchs[1];
 				let unit= matchs[2];
 				let level = matchs[8];
@@ -409,6 +409,10 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 					msg,
 					this.getDiagnosticSeverity(level)
 				);
+				if(msg.match(/ Local variable ".*?".*?(?:not|never) used/))
+				{
+					diag.code='variable-not-used';
+				}
 				if((cur_file=="")||!cur_file.endsWith(file)){
 					cur_file=file;
 				}

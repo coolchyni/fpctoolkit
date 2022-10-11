@@ -18,6 +18,7 @@
 - gotoDeclaration, gotoDefinition
 - class and function references 
 - documentHighlight
+- code format with [jcf cli](https://github.com/coolchyni/jcf-cli)
 
 ## Pascal Language Server 
 
@@ -43,6 +44,7 @@ Field   | type  |  Description  |
 `cwd`   | string|current path. Use wrokspace root if null.
 `cleanExt`|string|file extensions for clean file in unitOutputDir. use * for clear all file. default:(.o,.ppu)
 `buildOption`|object|build options
+`inherited`|string| inherit from other task
 
 ### buildOptions
 Field  | type | Description  |
@@ -77,13 +79,17 @@ example:
 }
 ~~~
 
-
+# Thanks
 ## HighLight
 
-syntaxes from https://github.com/maresmar/ST-Pascal
+Syntaxes from https://github.com/maresmar/ST-Pascal
+
+## Format
+
+Clone From https://github.com/git-bee/jcf-cli
 
 
-## Release Notes
+# Release Notes
 
 [view changelog](CHANGELOG.md)
 

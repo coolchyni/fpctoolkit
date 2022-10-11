@@ -1,6 +1,12 @@
 ## [Unreleased]
 - Using lazarus project files 
 
+## [1.1.3] - 2022-10-11
+### add:
+- code format
+- quick fix for compile warn/error/hits
+- document symbols navigation
+
 ## [1.1.0]
 - pascal language server 
 - code snippets

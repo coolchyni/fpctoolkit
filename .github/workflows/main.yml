@@ -1,14 +1,12 @@
 # This is a basic workflow to help you get started with Actions
 
-name: CI
+name: Publish FpcToolKit
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+  release:
+    types:
+      - published
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -29,6 +27,37 @@ jobs:
 
       - name: Install vsce
         run: npm i -g vsce
+        
+      - name: Install esbuild
+        run: npm i -g esbuild
+        
+      - name: Build with esbuild
+        run: esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs  --platform=node
+
+      #
+      # Package and Upload Extension
+      #
+      # NOTE:
+      # The "vscode:prepublish" script in package.json will be executed to compile the extension
+      # prior to packaging.
+      #
+      - name: Package Extension into .vsix file
+        id: asset
+        shell: bash
+        run: >
+          vsce package;
+          echo ::set-output name=vsix_path::$(ls *.vsix)
+          
+      - name: Upload .vsix file to Github as release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ steps.asset.outputs.vsix_path }}
+          asset_name: ${{ steps.asset.outputs.vsix_path }}
+          asset_content_type: application/zip
+
 
       - name: Publish
         run: vsce publish -p ${{ secrets.VSCE_PAT }}

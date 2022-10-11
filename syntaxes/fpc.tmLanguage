@@ -21,7 +21,7 @@
 	<array>
 		<dict>
 			<key>match</key>
-			<string>\b(?i:(absolute|abstract|all|and|and_then|array|as|asm|assembler|attribute|begin|bindable|case|class|const|constructor|destructor|delay|div|do|downto|else|end|except|export|exports|external|far|file|finalization|finally|for|forward|generic|goto|if|inc|implementation|import|in|index|inherited|initialization|inline|interface|interrupt|is|label|library|mod|module|near|nil|not|object|of|only|operator|or|or_else|otherwise|out|override|overload|packed|pow|private|property|protected|public|published|qualified|record|repeat|resident|restricted|segment|set|shl|shr|then|to|try|type|unit|until|uses|value|var|view|virtual|while|with|xor|write|writeln))\b</string>
+			<string>\b(?i:(absolute|abstract|all|and|and_then|array|as|asm|assembler|attribute|begin|bindable|case|class|const|constructor|destructor|delay|div|do|downto|else|end|except|export|exports|external|far|file|finalization|finally|for|forward|generic|goto|if|inc|implementation|import|in|index|inherited|initialization|inline|interface|interrupt|is|label|library|mod|module|near|nil|not|object|of|only|operator|or|or_else|otherwise|out|override|overload|packed|pow|private|property|protected|public|published|qualified|record|repeat|resident|restricted|segment|set|shl|shr|then|to|try|type|unit|until|uses|value|var|view|virtual|while|with|xor|write|writeln|specialize))\b</string>
 			<key>name</key>
 			<string>keyword.control.pascal</string>
 		</dict>

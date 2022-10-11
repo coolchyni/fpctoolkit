@@ -668,5 +668,12 @@
       "end."
     ],
     "description": "unit template"
+  },
+  "specialize":{
+    "prefix":"specialize",
+    "body":[
+      "specialize $0;"     
+    ],
+    "description":"specialize declaration"
   }
 }
