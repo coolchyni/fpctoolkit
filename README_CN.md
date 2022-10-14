@@ -27,11 +27,15 @@
 		* begin-end
 		* ... 
 - 智能代码补全，支持函数，过程，类，变量，关键字...
- ![](images/doc/code-snippets.gif)
+ 
+ 	![](images/doc/code-snippets.gif)
+ 
 - 代码快速导航
 	- 使用 `ctrl+up`,`ctrl+down` 在函数声明和函数体之间快速跳转.
 	- 快速访问类和函数定义
+	
 	![](images/doc/documentsymbol.gif) 
+	
 - 语法高亮显示
 	- 源代码高亮 
 	- 能根据编译条件,将`{$IFDEF} {ELSE} {$ENDIF}`之间的无效代码半透明. 
@@ -39,9 +43,12 @@
 	
 	- 使用[jcf cli](https://github.com/coolchyni/jcf-cli)格式化源代码
 	- 使用 `jcfsettings.cfg` 作为配置文件。如果你已经安装了lazarus,本插件将自动使用其配置文件. 
+	
 	![](images/doc/format.gif) 
+	
 - 快速修复
 	- 快速修复警告: `(5025) Local variable "xxx" not used`
+	
 	![](images/doc/quickfix.gif) 
 
 - 重命名函数，类，或变量名
