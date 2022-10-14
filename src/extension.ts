@@ -12,6 +12,7 @@ import { format } from 'path';
 import * as MyCodeAction from  './languageServer/codeaction';
 export let client:TLangClient;
 export let formatter:JediFormatter;
+export let logger:vscode.OutputChannel;
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -21,6 +22,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		return;
 	}
 
+	logger=vscode.window.createOutputChannel('fpctoolkit');
 
 	vscode.window.onDidChangeVisibleTextEditors(onDidChangeVisibleTextEditors);
 	vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument);

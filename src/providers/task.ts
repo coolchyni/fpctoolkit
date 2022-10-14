@@ -15,6 +15,7 @@ import { resolve } from 'path';
 import { configuration } from '../common/configuration';
 import { client } from '../extension';
 import { DiagnosticSeverity } from 'vscode';
+import { url } from 'inspector';
 
 export class  BuildOption{
 	targetOS?: string;
@@ -26,7 +27,10 @@ export class  BuildOption{
 	optimizationLevel?: number;
 	searchPath?: string[];
 	syntaxMode?: string;
+	forceRebuild?: boolean=false;
+	msgIgnore?:Number[];
 };
+
 
 export class FpcTaskDefinition implements vscode.TaskDefinition {
 	[name: string]: any;
@@ -42,32 +46,44 @@ export class FpcTaskDefinition implements vscode.TaskDefinition {
 export class FpcTaskProvider implements vscode.TaskProvider {
 	static FpcTaskType = 'fpc';
 	private defineMap: Map<string,FpcTaskDefinition>=new Map<string,FpcTaskDefinition>();
-
+	public taskMap: Map<string,vscode.Task>=new Map<string,vscode.Task>();
 	public GetTaskDefinition(name:string):FpcTaskDefinition|undefined{
 		return this.defineMap.get(name);
 	}
 	constructor(private workspaceRoot: string,private cwd: string|undefined=undefined) { 
 	}
 
-	public async provideTasks(): Promise<vscode.Task[]> {
+	public async clean(){
 		this.defineMap.clear();
+		this.taskMap.clear();
+	}
+	public async provideTasks(): Promise<vscode.Task[]> {
 		return this.getTasks();
 	}
 
 	public resolveTask(_task: vscode.Task): vscode.Task | undefined {
-		const file: string = _task.definition.file;
-		if (file) {
-			const definition: FpcTaskDefinition = <any>_task.definition;
-			if(_task.definition.cwd){
-				this.cwd=this.workspaceRoot+'/'+_task.definition.cwd;
-			}
-			let task=this.getTask(_task.name, definition.file, definition);
+		if(this.taskMap.has(_task.name)){
+			let task= this.taskMap.get(_task.name);
+			task!.definition=_task.definition;
 			return task;
+		}else
+		{
+			const file: string = _task.definition.file;
+			if (file) {
+				const definition: FpcTaskDefinition = <any>_task.definition;
+				if(_task.definition.cwd){
+					this.cwd=this.workspaceRoot+'/'+_task.definition.cwd;
+				}
+				let task=this.getTask(_task.name, definition.file, definition);
+				this.taskMap.set(_task.name,task);
+				return task;
+			}
 		}
+		
 		return undefined;
 	}
 
-	private getTasks(): vscode.Task[] {
+	private async getTasks(): Promise<vscode.Task[]> {
 		return [];
 	}
 	private mergeDefinition(from:FpcTaskDefinition,to:FpcTaskDefinition){
@@ -82,6 +98,7 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 				to.buildOption.customOptions=([] as string[]).concat(from.buildOption.customOptions??[],to.buildOption.customOptions??[]);	
 				to.buildOption.libPath=([] as string[]).concat(from.buildOption.libPath??[],to.buildOption.libPath??[]);
 				to.buildOption.searchPath=([] as string[]).concat(from.buildOption.searchPath??[],to.buildOption.searchPath??[]);
+				to.buildOption.msgIgnore=([] as Number[]).concat(from.buildOption.msgIgnore??[],to.buildOption.msgIgnore??[]);
 				
 				to.buildOption.optimizationLevel=to.buildOption.optimizationLevel??from.buildOption.optimizationLevel;
 				to.buildOption.outputFile=to.buildOption.outputFile??from.buildOption.outputFile;
@@ -89,6 +106,8 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 				to.buildOption.targetCPU=to.buildOption.targetCPU??from.buildOption.targetCPU;
 				to.buildOption.targetOS=to.buildOption.targetOS??from.buildOption.targetOS;
 				to.buildOption.unitOutputDir=to.buildOption.unitOutputDir??from.buildOption.unitOutputDir;
+				to.buildOption.forceRebuild=to.buildOption.forceRebuild??from.buildOption.forceRebuild;
+				
 		 	}
 		}
 		
@@ -130,8 +149,19 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 	}
 }
 
+export enum BuildMode{
+	normal,
+	rebuild
+}
 export class FpcTask extends vscode.Task  {
 	private _TaskBuildOptionString: string = '';
+	private _BuildMode: BuildMode = BuildMode.normal;
+	public get BuildMode(): BuildMode {
+		return this._BuildMode;
+	}
+	public set BuildMode(value: BuildMode) {
+		this._BuildMode = value;
+	}
 	public get TaskBuildOptionString(): string {
 		return this._TaskBuildOptionString;
 	}
@@ -160,12 +190,13 @@ export class FpcTask extends vscode.Task  {
 			};
 
 		}
-
+		buildOptionString+='-vq '; //show message numbers 
 
 		let fpcpath =process.env['PP'];//  configuration.get<string>('env.PP');
 		if(fpcpath===''){
 			fpcpath='fpc';
 		}
+
 		
 		super(
 			taskDefinition,
@@ -178,7 +209,11 @@ export class FpcTask extends vscode.Task  {
 				// let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
 				//terminal.args =  `${taskDefinition?.file} ${buildOptionString}`.split(' ');
 				let terminal = new  FpcBuildTaskTerminal(cwd, fpcpath!);
+				
 				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+				if(this._BuildMode==BuildMode.rebuild){
+					terminal.args.push('-B');	
+				}
 				return  terminal;
 				
 			}) 
@@ -249,16 +284,27 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 		for (const iter of this.diagMaps) {
 			let key=iter[0];
 			let item=iter[1];
-			let unit=key.split(".")[0];
-			let unitpaths=await client.getUnitPath([unit]);
-			if(unitpaths.length<1){
-				return;
+			let uri:vscode.Uri|undefined=undefined;
+			if(fs.existsSync(key)){
+				uri=vscode.Uri.file(key);
 			}
-			let unitpath=unitpaths[0];
-			let uri:vscode.Uri|undefined=vscode.Uri.file(unitpath);
-			if(unitpath==''){
-				uri=this.findFile(key)!;
-			};
+			if(!uri)
+			{
+				let unit=key.split(".")[0];
+
+				let unitpaths=await client.getUnitPath([unit]);
+				if(unitpaths.length<1){
+					return;
+				}
+				let unitpath=unitpaths[0];
+				//let uri:vscode.Uri|undefined=vscode.Uri.file(unitpath);
+				if(unitpath==''){
+					uri=this.findFile(key)!;
+				}else{
+					uri=vscode.Uri.file(unitpath);
+				}
+			}
+			
 			if(uri){
 				diagCollection.set(uri,item);
 			}else
@@ -368,6 +414,8 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 				return vscode.DiagnosticSeverity.Warning;
 			case 'Note':
 				return vscode.DiagnosticSeverity.Information;
+			case 'Hint':
+				return vscode.DiagnosticSeverity.Hint;
 			default:
 				return vscode.DiagnosticSeverity.Information;
 		}
@@ -375,20 +423,9 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	onOutput(lines: string) {
 		let ls = <string[]>lines.split('\n');
 		let cur_file="";
+		let reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/	
 		ls.forEach(line => {
-			// line=line.trimEnd();
-			// //Compiling ([^\\s].*(p|pp|pas|lpr))$
-			// let reg_file=/Compiling ([^\\s].*(p|pp|pas|lpr|dpr|inc))$/;
-			// let matchs=reg_file.exec(line);
-			// if(matchs){
-			// 	cur_file=matchs[1];
-			// 	return;
-			// }
-
-
-			let reg = /^(([\w-:\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note):(.*)/;
-			//reg.compile();
-
+		
 			let matchs = reg.exec(line);
 
 			if (matchs) {
@@ -398,7 +435,8 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 				let file = matchs[1];
 				let unit= matchs[2];
 				let level = matchs[8];
-				let msg = matchs[9];
+				let msgcode= matchs[9];
+				let msg = matchs[10];
 				// this.emit(
 				// 	TerminalEscape.apply({ msg: file+"("+ln+','+col +") ", style: TE_Style.Blue })+
 				// 	TerminalEscape.apply({ msg: level+":"+msg, style: TE_Style.Red })
@@ -409,19 +447,22 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 					msg,
 					this.getDiagnosticSeverity(level)
 				);
-				if(msg.match(/ Local variable ".*?".*?(?:not|never) used/))
-				{
-					diag.code='variable-not-used';
-				}
-				if((cur_file=="")||!cur_file.endsWith(file)){
-					cur_file=file;
-				}
-				if (this.diagMaps?.has(cur_file)) {
+				diag.code=Number.parseInt(msgcode);
 
-					this.diagMaps.get(cur_file)?.push(diag);
+				// if(msg.match(/ Local variable ".*?".*?(?:not|never) used/))
+				// {
+				// 	diag.code='variable-not-used';
+				// }
+				let basename=path.basename(file);
+				// if((cur_file=="")||(path.basename(cur_file)!=path.basename(file))){
+				// 	cur_file=file;
+				// }
+				if (this.diagMaps?.has(basename)) {
+
+					this.diagMaps.get(basename)?.push(diag);
 				} else {
 
-					this.diagMaps.set(cur_file, [diag]);
+					this.diagMaps.set(basename, [diag]);
 
 				}
 				if(diag.severity==DiagnosticSeverity.Error){

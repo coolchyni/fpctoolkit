@@ -5,6 +5,8 @@ import path = require('path');
 import { configuration } from './common/configuration';
 import { env } from 'process';
 import * as fs from 'fs';
+import { client, logger } from './extension';
+import { Console } from 'console';
 
 export class JediFormatter {
     private jcfpath:string;
@@ -70,18 +72,22 @@ export class JediFormatter {
         vscode.languages.registerDocumentFormattingEditProvider('objectpascal', {
             provideDocumentFormattingEdits(document: vscode.TextDocument): vscode.ProviderResult<vscode.TextEdit[]> {
                 let cfg_path=_this.getCfgConfig();
-                let proc = ChildProcess.spawn(path.basename(_this.jcfpath), ['-inplace', '-y','-config='+cfg_path,'-F' ,document.fileName], { cwd: path.dirname(_this.jcfpath) });
+                let proc= ChildProcess.spawn(_this.jcfpath, ['-inplace', '-y','-config='+cfg_path,'-F' ,document.fileName] );
+                logger.appendLine(proc.spawnargs.join(' '));
                 proc.stdout.on('data', (data) => {
+                    logger.appendLine(data);
                     console.log(`stdout: ${data}`);
                 });
 
                 proc.stderr.on('data', (data) => {
+                    logger.appendLine(data);
                     console.error(`stderr: ${data}`);
                 });
 
                 proc.on('close', (code) => {
                     console.log(`child process exited with code ${code}`);
                 });
+                proc.unref();
                 return [];
             }
         });

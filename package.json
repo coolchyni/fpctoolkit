@@ -25,7 +25,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/coolchyni/fpctoolkit.git"
+    "url": "https://github.com/coolchyni/fpctoolkit.git"
   },
   "bugs": {
     "url": "https://github.com/coolchyni/fpctoolkit/issues"
@@ -257,6 +257,18 @@
                   3,
                   4
                 ]
+              },
+              "forceRebuild":{
+                "type":"boolean",
+                "description": "%task.buildOption.forceRebuild%",
+                "default":false
+              },
+              "msgIgnore":{
+                "type":"array",
+                "items": {
+                  "type":"number"
+                },
+                "description": "%task.buildOption.msgIgnore%"
               },
               "customOptions": {
                 "type": "array",

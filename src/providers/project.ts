@@ -27,8 +27,9 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		const name = 'FpcProjectExplorer';
 		subscriptions.push(vscode.commands.registerCommand(name + ".open", async (item: FpcItem) => { await this.open(item); }, this));
 
-		this.watch = vscode.workspace.createFileSystemWatcher("**/tasks.json", true);
+		this.watch = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot,".vscode","tasks.json"), false);
 		this.watch.onDidChange(async (url) => {
+			taskProvider.clean();
 			if(this.timeout!=undefined){
 				clearTimeout(this.timeout);
 			}

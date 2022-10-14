@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import *  as fs from 'fs';
 import * as path from 'path';
 import { configuration } from '../common/configuration';
-import { FpcTaskDefinition } from '../providers/task';
+import { BuildOption, FpcTaskDefinition } from '../providers/task';
 export class CompileOption {
     /**
      * Compile Option
@@ -21,18 +21,7 @@ export class CompileOption {
         clear: true,
         revealProblems: "onProblem"
     };
-
-    public buildOption?: {
-        targetOS?: string,
-        targetCPU?: string,
-        customOptions?: string[],
-        libPath?: string[],
-        outputFile?: string,
-        unitOutputDir?: string,
-        optimizationLevel?: number,
-        searchPath?: string[],
-        syntaxMode?: string,
-    };
+    public buildOption?:BuildOption;
 
 
     constructor(
@@ -96,6 +85,12 @@ export class CompileOption {
         if (this.buildOption?.targetCPU) {
             s += "-P" + this.buildOption!.targetCPU + " ";
         }
+        if(this.buildOption?.forceRebuild){
+            s +='-B '
+        }
+        if(this.buildOption?.msgIgnore && this.buildOption.msgIgnore.length>0){
+            s+='-vm'+this.buildOption.msgIgnore.join(',')+' ';
+        }
         if (this.buildOption?.outputFile) {
             let outfile = this.buildOption!.outputFile;
             if (outfile.startsWith(".")) {
@@ -127,7 +122,6 @@ export class CompileOption {
         this.buildOption?.libPath?.forEach((e) => {
             s += "-Fl" + e + " ";
         });
-
 
         if (this.buildOption?.unitOutputDir) {
             let dir = this.buildOption!.unitOutputDir;

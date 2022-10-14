@@ -3,7 +3,7 @@ import { FpcItem } from './providers/project';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
-import { FpcTask, FpcTaskProvider, taskProvider } from './providers/task';
+import { BuildMode, FpcTask, FpcTaskDefinition, FpcTaskProvider, taskProvider } from './providers/task';
 import { CompileOption } from './languageServer/options';
 import { configuration } from './common/configuration'
 import { type } from 'os';
@@ -35,8 +35,10 @@ export class FpcCommandManager {
             }
             let label: string | undefined;
             let customOption = '-dDEBUG';
+            let isDebug=false;
             switch (inp) {
                 case 'debug':
+                    isDebug=true;
                     label = 'debug';
                     break;
                 case 'release':
@@ -56,19 +58,18 @@ export class FpcCommandManager {
                 "label": label,
                 "file": node.label,
                 "type": "fpc",
-                "presentation": {
-                    "showReuseMessage": false,
-                    "clear": true,
-                    "revealProblems": "onProblem"
-                },
                 "buildOption": {
+                    "syntaxMode": "ObjFPC",
                     "unitOutputDir": "./out",
                     "customOptions": [
                         customOption
                     ]
                 }
             };
-
+            if(isDebug){
+                v.buildOption.customOptions=[customOption,'-gw2'];
+            }
+            
             let tasks = config.tasks;
             if (tasks) {
                 tasks.push(v);
@@ -91,6 +92,10 @@ export class FpcCommandManager {
                 e.forEach((task) => {
                     //vscode.window.showInformationMessage(task.name);
                     if (task.name === node.label) {
+                        let newtask=taskProvider.taskMap.get(task.name);
+                        if(newtask){
+                            (newtask as FpcTask).BuildMode=BuildMode.normal;   
+                        }
                         vscode.tasks.executeTask(task);
 
                         return;
@@ -104,8 +109,30 @@ export class FpcCommandManager {
     };
 
     ProjectReBuild = async (node: FpcItem) => {
-        await this.projectClean(node);
-        this.ProjectBuild(node);
+
+        if (node.level === 0) {
+
+        } else {
+            vscode.tasks.fetchTasks({ type: 'fpc' }).then((e) => {
+
+                for (const task of e) {
+                    if (task.name === node.label) {
+                        let newtask=taskProvider.taskMap.get(task.name);
+                        if(newtask){
+                            (newtask as FpcTask).BuildMode=BuildMode.rebuild;   
+                        }
+                        
+                        vscode.tasks.executeTask(task).then((e)=>{
+                            console.log(e.task.name);
+                        });
+
+                        return;
+                    }
+   
+                }
+            });
+
+        }
 
     };
     ProjectOpen = async (node?: FpcItem) => {
@@ -118,6 +145,9 @@ export class FpcCommandManager {
     ProjectNew = async () => {
 
         let s = `program main;
+{$mode objfpc}{$H+}
+uses
+  classes,sysutils;
 begin 
    
 end.`;

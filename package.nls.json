@@ -17,6 +17,8 @@
     "task.buildOption.syntaxMode": "Syntax Mode  (-M,{$mode})",
     "task.buildOption.optimizationLevel": "Optimization levels (-O)",
     "task.buildOption.customOptions": "Custom compile options for fpc.",
+    "task.buildOption.forceRebuild": "Re-compile all used units, even if the unit sources didn’t change since the last compilation.(-B)",
+    "task.buildOption.msgIgnore": "Is a list of messages numbers which should not be shown.(-vmxxx)",          
     "task.inherited":"Task name inheried from.",
     "config.searchPath": "Searchpath for units.(-Fu)",
     "config.libPath": "Searchpath for libraries.(-Fl)",

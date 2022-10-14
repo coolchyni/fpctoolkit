@@ -17,6 +17,8 @@
     "task.buildOption.syntaxMode": "语法模式 (-M,{$mode})",
     "task.buildOption.optimizationLevel": "代码优化级别 (-O)",
     "task.buildOption.customOptions": "自定义编译选项.",
+    "task.buildOption.forceRebuild": "强制更新所有单元文件并编译.(-B)",
+    "task.buildOption.msgIgnore":"指定编译时哪些消息不需要显示.可以指定多个error,warn,note编号。(-vmxxx)",          
     "task.inherited":"继承任务的名称.",
     "config.searchPath": "单元文件搜索路径.(-Fu)",
     "config.libPath": "库搜索路径.(-Fl)",
