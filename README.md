@@ -33,18 +33,18 @@
 	- Use `ctrl+up`,`ctrl+down` to jump between declaration and implementation.
 - class and function references
 		
-	![](images/doc/documentsymbol.png)
+	![](images/doc/documentsymbol.gif)
 - documentHighlight
 	- High light for source code 
 	- Identify the compilation conditions for the definition. `{$IFDEF} {ELSE} {$ENDIF}`
 
 - code format with [jcf cli](https://github.com/coolchyni/jcf-cli)
+![](images/doc/format.gif) 
 	- Format source code
 	- Use `jcfsettings.cfg` as config. Will use lazarus's config if it installed. 
 - quick fix 
 	- Quick fix for `(5025) Local variable "xxx" not used`
-
-	![](images/doc/quickfix.gif) 
+   ![](images/doc/quickfix.gif) 
 - auto rename symbols
 	- Rename function,procedure,variable and it's reference. 
 - code complete 
