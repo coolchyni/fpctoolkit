@@ -1,11 +1,14 @@
 ## [Unreleased]
 - Using lazarus project files 
 
-## [1.1.3] - 2022-10-11
+## [1.1.3] - 2022-10-14
 ### add:
 - code format
 - quick fix for compile warn/error/hits
 - document symbols navigation
+- remove ununsed unit
+### fixed:
+- Enhance the stability of the program pasls 
 
 ## [1.1.0]
 - pascal language server 
