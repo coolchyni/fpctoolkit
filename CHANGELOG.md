@@ -1,10 +1,14 @@
 ## [Unreleased]
 - Using lazarus project files 
 
+## [1.1.4] - 2022-10-15
+## fixed:
+- quick fix not worked 
+
 ## [1.1.3] - 2022-10-14
 ### add:
 - code format
-- quick fix for compile warn/error/hits
+- quick fix for [5025] Local variable "xxx" not used
 - document symbols navigation
 - remove ununsed unit
 ### fixed:

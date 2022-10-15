@@ -151,13 +151,13 @@ export class Emojinfo implements vscode.CodeActionProvider {
 		// for each diagnostic entry that has the matching `code`, create a code action command
 	    return context.diagnostics
 			.filter(diagnostic =>{
-                return diagnostic.code === "variable-not-used";
+                return diagnostic.code === 5025;
             } )
 			.map(diagnostic => this.createCommandCodeAction(document,diagnostic));
 	}
 
 	private createCommandCodeAction(document: vscode.TextDocument,diagnostic: vscode.Diagnostic): vscode.CodeAction {
-        let matchs=diagnostic.message.match(/ Local variable "(.*?)".*?(?:not|never) used/)!;
+        let matchs=diagnostic.message.match(/Local variable "(.*?)".*?not used/)!;
      
         let variable=matchs[1];
 
