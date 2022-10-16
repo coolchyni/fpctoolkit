@@ -17,7 +17,7 @@ import { client } from '../extension';
 import { DiagnosticSeverity } from 'vscode';
 import { url } from 'inspector';
 
-export class  BuildOption{
+export class BuildOption {
 	targetOS?: string;
 	targetCPU?: string;
 	customOptions?: string[];
@@ -27,33 +27,44 @@ export class  BuildOption{
 	optimizationLevel?: number;
 	searchPath?: string[];
 	syntaxMode?: string;
-	forceRebuild?: boolean=false;
-	msgIgnore?:Number[];
+	forceRebuild?: boolean = false;
+	msgIgnore?: Number[];
 };
 
 
 export class FpcTaskDefinition implements vscode.TaskDefinition {
 	[name: string]: any;
-	readonly type: string='fpc';
+	readonly type: string = 'fpc';
 	file?: string;
 	cwd?: string;
-	cleanExt?:string;
-	inherited?:string;
-	buildOption?:BuildOption;
+	cleanExt?: string;
+	inherited?: string;
+	buildOption?: BuildOption;
 }
 
 
 export class FpcTaskProvider implements vscode.TaskProvider {
 	static FpcTaskType = 'fpc';
-	private defineMap: Map<string,FpcTaskDefinition>=new Map<string,FpcTaskDefinition>();
-	public taskMap: Map<string,vscode.Task>=new Map<string,vscode.Task>();
-	public GetTaskDefinition(name:string):FpcTaskDefinition|undefined{
-		return this.defineMap.get(name);
+	private defineMap: Map<string, FpcTaskDefinition> = new Map<string, FpcTaskDefinition>();
+	public taskMap: Map<string, vscode.Task> = new Map<string, vscode.Task>();
+	public GetTaskDefinition(name: string): FpcTaskDefinition | undefined {
+		let result = this.defineMap.get(name);
+		if (result && result.inherited) {
+			let base = this.defineMap.get(result.inherited);
+			if (base) {
+				let realDefinition = new FpcTaskDefinition();
+				this.mergeDefinition(base, realDefinition);
+				this.mergeDefinition(result, realDefinition);
+				return realDefinition;
+
+			}
+		}
+		return result;
 	}
-	constructor(private workspaceRoot: string,private cwd: string|undefined=undefined) { 
+	constructor(private workspaceRoot: string, private cwd: string | undefined = undefined) {
 	}
 
-	public async clean(){
+	public async clean() {
 		this.defineMap.clear();
 		this.taskMap.clear();
 	}
@@ -62,71 +73,70 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 	}
 
 	public resolveTask(_task: vscode.Task): vscode.Task | undefined {
-		if(this.taskMap.has(_task.name)){
-			let task= this.taskMap.get(_task.name);
-			task!.definition=_task.definition;
+		if (this.taskMap.has(_task.name)) {
+			let task = this.taskMap.get(_task.name);
+			task!.definition = _task.definition;
 			return task;
-		}else
-		{
+		} else {
 			const file: string = _task.definition.file;
 			if (file) {
 				const definition: FpcTaskDefinition = <any>_task.definition;
-				if(_task.definition.cwd){
-					this.cwd=this.workspaceRoot+'/'+_task.definition.cwd;
+				if (_task.definition.cwd) {
+					this.cwd = this.workspaceRoot + '/' + _task.definition.cwd;
 				}
-				let task=this.getTask(_task.name, definition.file, definition);
-				this.taskMap.set(_task.name,task);
+				let task = this.getTask(_task.name, definition.file, definition);
+				this.taskMap.set(_task.name, task);
 				return task;
 			}
 		}
-		
+
 		return undefined;
 	}
 
 	private async getTasks(): Promise<vscode.Task[]> {
 		return [];
 	}
-	private mergeDefinition(from:FpcTaskDefinition,to:FpcTaskDefinition){
-		to.file=to.file??from.file;
-		to.cwd=to.cwd??from.cwd;
-		to.cleanExt=to.cleanExt??from.cleanExt;
-		if(from.buildOption!=undefined){
-			if(to.buildOption===undefined){
-				to.buildOption=Object.assign({},from.buildOption);
+	private mergeDefinition(from: FpcTaskDefinition, to: FpcTaskDefinition) {
+		to.file = to.file ?? from.file;
+		to.cwd = to.cwd ?? from.cwd;
+		to.cleanExt = to.cleanExt ?? from.cleanExt;
+		if (from.buildOption != undefined) {
+			if (to.buildOption === undefined) {
+				to.buildOption = Object.assign({}, from.buildOption);
 			}
-			else{
-				to.buildOption.customOptions=([] as string[]).concat(from.buildOption.customOptions??[],to.buildOption.customOptions??[]);	
-				to.buildOption.libPath=([] as string[]).concat(from.buildOption.libPath??[],to.buildOption.libPath??[]);
-				to.buildOption.searchPath=([] as string[]).concat(from.buildOption.searchPath??[],to.buildOption.searchPath??[]);
-				to.buildOption.msgIgnore=([] as Number[]).concat(from.buildOption.msgIgnore??[],to.buildOption.msgIgnore??[]);
-				
-				to.buildOption.optimizationLevel=to.buildOption.optimizationLevel??from.buildOption.optimizationLevel;
-				to.buildOption.outputFile=to.buildOption.outputFile??from.buildOption.outputFile;
-				to.buildOption.syntaxMode=to.buildOption.syntaxMode??from.buildOption.syntaxMode;
-				to.buildOption.targetCPU=to.buildOption.targetCPU??from.buildOption.targetCPU;
-				to.buildOption.targetOS=to.buildOption.targetOS??from.buildOption.targetOS;
-				to.buildOption.unitOutputDir=to.buildOption.unitOutputDir??from.buildOption.unitOutputDir;
-				to.buildOption.forceRebuild=to.buildOption.forceRebuild??from.buildOption.forceRebuild;
-				
-		 	}
-		}
-		
-	}
-	public getTask(name: string, file?: string,  definition?: FpcTaskDefinition): vscode.Task {
-		if(definition?.inherited){
-			let pdefine=this.defineMap.get(definition.inherited);
-			if(pdefine){
-				let realDefinition=new FpcTaskDefinition();
-				this.mergeDefinition(definition,realDefinition);
-				this.mergeDefinition(pdefine,realDefinition);
-				this.defineMap.set(name,realDefinition);
-				let task = new FpcTask(this.cwd?this.cwd:this.workspaceRoot, name, file!, definition,realDefinition);
-				return task;
-			}
+			else {
+				to.buildOption.customOptions = ([] as string[]).concat(from.buildOption.customOptions ?? [], to.buildOption.customOptions ?? []);
+				to.buildOption.libPath = ([] as string[]).concat(from.buildOption.libPath ?? [], to.buildOption.libPath ?? []);
+				to.buildOption.searchPath = ([] as string[]).concat(from.buildOption.searchPath ?? [], to.buildOption.searchPath ?? []);
+				to.buildOption.msgIgnore = ([] as Number[]).concat(from.buildOption.msgIgnore ?? [], to.buildOption.msgIgnore ?? []);
 
+				to.buildOption.optimizationLevel = to.buildOption.optimizationLevel ?? from.buildOption.optimizationLevel;
+				to.buildOption.outputFile = to.buildOption.outputFile ?? from.buildOption.outputFile;
+				to.buildOption.syntaxMode = to.buildOption.syntaxMode ?? from.buildOption.syntaxMode;
+				to.buildOption.targetCPU = to.buildOption.targetCPU ?? from.buildOption.targetCPU;
+				to.buildOption.targetOS = to.buildOption.targetOS ?? from.buildOption.targetOS;
+				to.buildOption.unitOutputDir = to.buildOption.unitOutputDir ?? from.buildOption.unitOutputDir;
+				to.buildOption.forceRebuild = to.buildOption.forceRebuild ?? from.buildOption.forceRebuild;
+
+			}
 		}
-		this.defineMap.set(name,definition!);
-		let task = new FpcTask(this.cwd?this.cwd:this.workspaceRoot, name, file!, definition!);
+
+	}
+	public getTask(name: string, file?: string, definition?: FpcTaskDefinition): vscode.Task {
+		// if (definition?.inherited) {
+		// 	let pdefine = this.defineMap.get(definition.inherited);
+		// 	if (pdefine) {
+		// 		let realDefinition = new FpcTaskDefinition();
+		// 		this.mergeDefinition(definition, realDefinition);
+		// 		this.mergeDefinition(pdefine, realDefinition);
+		// 		this.defineMap.set(name, realDefinition);
+		// 		let task = new FpcTask(this.cwd ? this.cwd : this.workspaceRoot, name, file!, definition, realDefinition);
+		// 		return task;
+		// 	}
+
+		// }
+		this.defineMap.set(name, definition!);
+		let task = new FpcTask(this.cwd ? this.cwd : this.workspaceRoot, name, file!, definition!);
 
 
 		// task.presentationOptions.clear = true;
@@ -139,22 +149,21 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 		//(task.presentationOptions as any)["revealProblems"]="onProblem";
 
 		//task.problemMatchers.push('$fpc');
-	
-		
+
+
 		return task;
 	}
 
-	public refresh(){
+	public refresh() {
 		client.restart();
 	}
 }
 
-export enum BuildMode{
+export enum BuildMode {
 	normal,
 	rebuild
 }
-export class FpcTask extends vscode.Task  {
-	private _TaskBuildOptionString: string = '';
+export class FpcTask extends vscode.Task {
 	private _BuildMode: BuildMode = BuildMode.normal;
 	public get BuildMode(): BuildMode {
 		return this._BuildMode;
@@ -162,42 +171,8 @@ export class FpcTask extends vscode.Task  {
 	public set BuildMode(value: BuildMode) {
 		this._BuildMode = value;
 	}
-	public get TaskBuildOptionString(): string {
-		return this._TaskBuildOptionString;
-	}
-	public set TaskBuildOptionString(value: string) {
-		this._TaskBuildOptionString = value;
-	}
-	constructor(cwd: string, name: string, file: string, taskDefinition: FpcTaskDefinition,realDefinition?: FpcTaskDefinition) {
+	constructor(cwd: string, name: string, file: string, taskDefinition: FpcTaskDefinition) {
 
-		let buildOptionString: string='';
-		if(realDefinition===undefined){
-			realDefinition=taskDefinition;
-		}
-		if (realDefinition?.buildOption) {
-			let opt: CompileOption = new CompileOption(realDefinition);
-			buildOptionString = opt.toOptionString();
-		}
-		if (!buildOptionString) {
-			buildOptionString = "";
-		}
-
-		if (!realDefinition) {
-			realDefinition = {
-				type: FpcTaskProvider.FpcTaskType,
-				file: file,
-
-			};
-
-		}
-		buildOptionString+='-vq '; //show message numbers 
-
-		let fpcpath =process.env['PP'];//  configuration.get<string>('env.PP');
-		if(fpcpath===''){
-			fpcpath='fpc';
-		}
-
-		
 		super(
 			taskDefinition,
 			vscode.TaskScope.Workspace,
@@ -208,17 +183,47 @@ export class FpcTask extends vscode.Task  {
 				// 	// When the task is executed, this callback will run. Here, we setup for running the task.
 				// let terminal = new  FpcBuildTaskTerminal(workspaceRoot, fpcpath!);
 				//terminal.args =  `${taskDefinition?.file} ${buildOptionString}`.split(' ');
-				let terminal = new  FpcBuildTaskTerminal(cwd, fpcpath!);
-				
-				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
-				if(this._BuildMode==BuildMode.rebuild){
-					terminal.args.push('-B');	
+
+				//taskProvider.GetTaskDefinition()
+				let buildOptionString: string = '';
+				let realDefinition=taskProvider.GetTaskDefinition(name);
+				if (realDefinition === undefined) {
+					realDefinition = taskDefinition;
 				}
-				return  terminal;
-				
-			}) 
+				if (realDefinition?.buildOption) {
+					let opt: CompileOption = new CompileOption(realDefinition);
+					buildOptionString = opt.toOptionString();
+				}
+				if (!buildOptionString) {
+					buildOptionString = "";
+				}
+
+				if (!realDefinition) {
+					realDefinition = {
+						type: FpcTaskProvider.FpcTaskType,
+						file: file,
+
+					};
+
+				}
+				buildOptionString += '-vq '; //show message numbers 
+
+				let fpcpath = process.env['PP'];//  configuration.get<string>('env.PP');
+				if (fpcpath === '') {
+					fpcpath = 'fpc';
+				}
+
+				let terminal = new FpcBuildTaskTerminal(cwd, fpcpath!);
+
+				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+				if (this._BuildMode == BuildMode.rebuild) {
+					terminal.args.push('-B');
+				}
+				return terminal;
+
+			})
 		);
-		this.TaskBuildOptionString=buildOptionString;
+		//this.TaskBuildOptionString = buildOptionString;
 	}
 
 
@@ -229,7 +234,7 @@ class FpcCustomExecution extends vscode.CustomExecution {
 }
 export var diagCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('fpc');
 
-class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitStatus {
+class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExitStatus {
 	private writeEmitter = new vscode.EventEmitter<string>();
 	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
 	private closeEmitter = new vscode.EventEmitter<number>();
@@ -247,7 +252,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 		this.onDidClose((e) => {
 			//vscode.window.showInformationMessage('onDidClose');	
 		});
-		
+
 	}
 	code: number | undefined;
 
@@ -262,7 +267,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 
 	// }
 	clear() {
-	
+
 	}
 	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
 		//vscode.window.createTerminal()
@@ -271,48 +276,46 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	}
 
 	close(): void {
-	
+
 	}
-	
+
 
 	async buildend() {
-		let units=Array.from(this.diagMaps.keys());
-	
+		let units = Array.from(this.diagMaps.keys());
+
 		// The terminal has been closed. Shutdown the build.
 		diagCollection.clear();
 		let has_error: boolean = false;
 		for (const iter of this.diagMaps) {
-			let key=iter[0];
-			let item=iter[1];
-			let uri:vscode.Uri|undefined=undefined;
-			if(fs.existsSync(key)){
-				uri=vscode.Uri.file(key);
+			let key = iter[0];
+			let item = iter[1];
+			let uri: vscode.Uri | undefined = undefined;
+			if (fs.existsSync(key)) {
+				uri = vscode.Uri.file(key);
 			}
-			if(!uri)
-			{
-				let unit=key.split(".")[0];
+			if (!uri) {
+				let unit = key.split(".")[0];
 
-				let unitpaths=await client.getUnitPath([unit]);
-				if(unitpaths.length<1){
+				let unitpaths = await client.getUnitPath([unit]);
+				if (unitpaths.length < 1) {
 					return;
 				}
-				let unitpath=unitpaths[0];
+				let unitpath = unitpaths[0];
 				//let uri:vscode.Uri|undefined=vscode.Uri.file(unitpath);
-				if(unitpath==''){
-					uri=this.findFile(key)!;
-				}else{
-					uri=vscode.Uri.file(unitpath);
+				if (unitpath == '') {
+					uri = this.findFile(key)!;
+				} else {
+					uri = vscode.Uri.file(unitpath);
 				}
 			}
-			
-			if(uri){
-				diagCollection.set(uri,item);
-			}else
-			{
-				diagCollection.set(vscode.Uri.file(key),item);
+
+			if (uri) {
+				diagCollection.set(uri, item);
+			} else {
+				diagCollection.set(vscode.Uri.file(key), item);
 			}
 			if (!has_error) {
-			
+
 				item.forEach((d) => {
 					if (d.severity === 0) {
 						has_error = true;
@@ -351,7 +354,7 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 
 	private async doBuild(): Promise<number> {
 		return new Promise<number>((resolve) => {
-			
+
 			this.buffer = "";
 			this.errbuf = "";
 			this.diagMaps.clear();
@@ -361,14 +364,14 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 			this.process.stdout?.on('data', this.stdout.bind(this));
 			this.process.stderr?.on('data', this.stderr.bind(this));
 			this.process.on('close', (code) => {
-				
+
 				this.writeEmitter.fire(`Exited with code ${code}.\r\nBuild complete. \r\n\r\n`);
-				this.buildend().then(()=>{
+				this.buildend().then(() => {
 					this.closeEmitter.fire(code);
 				});
 				//This is a exitcode,not zero meens failure.
-				
-				
+
+
 				resolve(0);
 			});
 
@@ -422,20 +425,20 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 	}
 	onOutput(lines: string) {
 		let ls = <string[]>lines.split('\n');
-		let cur_file="";
-		let reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/	
+		let cur_file = "";
+		let reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/
 		ls.forEach(line => {
-		
+
 			let matchs = reg.exec(line);
 
 			if (matchs) {
-				
+
 				let ln = Number(matchs[5]);
 				let col = Number(matchs[7]);
 				let file = matchs[1];
-				let unit= matchs[2];
+				let unit = matchs[2];
 				let level = matchs[8];
-				let msgcode= matchs[9];
+				let msgcode = matchs[9];
 				let msg = matchs[10];
 				// this.emit(
 				// 	TerminalEscape.apply({ msg: file+"("+ln+','+col +") ", style: TE_Style.Blue })+
@@ -447,13 +450,13 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 					msg,
 					this.getDiagnosticSeverity(level)
 				);
-				diag.code=Number.parseInt(msgcode);
+				diag.code = Number.parseInt(msgcode);
 
 				// if(msg.match(/ Local variable ".*?".*?(?:not|never) used/))
 				// {
 				// 	diag.code='variable-not-used';
 				// }
-				let basename=path.basename(file);
+				let basename = path.basename(file);
 				// if((cur_file=="")||(path.basename(cur_file)!=path.basename(file))){
 				// 	cur_file=file;
 				// }
@@ -465,10 +468,9 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 					this.diagMaps.set(basename, [diag]);
 
 				}
-				if(diag.severity==DiagnosticSeverity.Error){
+				if (diag.severity == DiagnosticSeverity.Error) {
 					this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
-				}else
-				{
+				} else {
 					this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Cyan] }));
 				}
 
@@ -486,10 +488,10 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal,vscode.TerminalExitS
 
 }
 
-export let  taskProvider:FpcTaskProvider;
+export let taskProvider: FpcTaskProvider;
 
 if (vscode.workspace.workspaceFolders) {
 	const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
-	taskProvider=new FpcTaskProvider(workspaceRoot);	
+	taskProvider = new FpcTaskProvider(workspaceRoot);
 }
 
