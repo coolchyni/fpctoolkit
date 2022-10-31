@@ -88,7 +88,9 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 
 		if (element) {
+			this.defaultFtpItem=undefined;
 			let items: FpcItem[] = [];
+			
 			element.tasks?.forEach((task) => {
 				let item = new FpcItem(
 					1,
@@ -104,6 +106,11 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					this.defaultFtpItem = item;
 				}
 			});
+			if(!this.defaultFtpItem && items.length>0){
+				this.defaultFtpItem=items[0];
+				this.defaultFtpItem.description='default';
+				this.defaultFtpItem.isDefault=true;
+			}
 			return Promise.resolve(items);
 
 		} else {
@@ -198,10 +205,10 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		let cfg=vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
 		let opt: CompileOption|undefined=undefined;
+		let is_first=true;
 		if (cfg?.tasks != undefined) {
 			for (const e of cfg?.tasks) {
-				if (e.type === 'fpc') {
-					
+				if (e.type === 'fpc') {		
 					if (e.group?.isDefault) {
 						let def=taskProvider.GetTaskDefinition(e.label);
 						
@@ -209,6 +216,12 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 						this.defaultCompileOption=opt;
 						return opt;
 					}
+					if(is_first){
+						is_first=false;
+						let def=taskProvider.GetTaskDefinition(e.label);					
+						opt = new CompileOption(def,this.workspaceRoot);
+					}
+
 				}
 			}
 		}
@@ -318,8 +331,9 @@ export class FpcItem extends vscode.TreeItem {
 			};
 			this.command = command;
 		}
+		
+		this.iconPath=this.level? new vscode.ThemeIcon('wrench'):path.join(__filename, '..','..',  'images','pascal-project.png');
 
-		//this.iconPath="$(play)";
 		//https://code.visualstudio.com/api/references/icons-in-labels
 
 		//this.command!.command= "workbench.action.tasks.configureTaskRunner"; 
@@ -328,11 +342,10 @@ export class FpcItem extends vscode.TreeItem {
 	}
 
 
-
-	iconPath = {
-		light: path.join(__filename, '..','..',  'images', this.level ? 'build.png' : 'pascal-project.png'),
-		dark: path.join(__filename, '..','..',  'images', this.label ? 'build.png' : 'pascal-project.png')
-	};
+	// iconPath = {
+	// 	light: this.level?'$(gripper)':path.join(__filename, '..','..',  'images', this.level ? 'build.png' : 'pascal-project.png'),
+	// 	dark: path.join(__filename, '..','..',  'images', this.label ? 'build.png' : 'pascal-project.png')
+	// };
 
 
 }
