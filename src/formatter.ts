@@ -43,7 +43,11 @@ export class JediFormatter {
             throw "Invalid arch";
         }
         this.is_win=plat==='win32';
+     
         this.jcfpath = path.resolve(util.getExtensionFilePath("bin"), extensionProcessName);
+        if(!this.is_win){
+            fs.chmodSync(this.jcfpath,755);
+        }
         this.default_cfg=path.resolve(util.getExtensionFilePath("bin"),'jcfsettings.cfg');
         let cfg_path='';
         if(this.is_win){

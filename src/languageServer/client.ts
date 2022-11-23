@@ -15,24 +15,15 @@ import {
     LanguageClientOptions,
     ShowMessageNotification,
     ShowMessageParams,
-    CompletionRequest,
-    State,
     MessageType,
     ExecuteCommandRequest,
-    ExecuteCommandParams,
-    DidChangeTextDocumentNotification,
-    DidChangeTextDocumentParams,
-    ParameterStructures,
-    integer
-} from 'vscode-languageclient/node';
+    ExecuteCommandParams} from 'vscode-languageclient/node';
 
 import { FpcProjectProvider } from '../providers/project';
 import * as util from '../common/util';
 import { CompileOption, InitializationOptions } from "./options";
-import { error } from 'console';
-import { env, versions } from 'process';
+import { env } from 'process';
 import * as fs from 'fs-extra';
-import { ExecuteCommandFeature } from 'vscode-languageclient/lib/common/executeCommand';
 
 interface InputRegion {
     startLine: number;
@@ -307,6 +298,9 @@ export class TLangClient {
         // Load the path to the language server from settings
         //let executable: string = workspace.getConfiguration('pascalLanguageServer').get("executable")!;
         let executable: string = this.getLanguageServerFileName();
+        if(process.platform!='win32'){
+            fs.chmod(executable,755);
+        }
         // TODO: download the executable for the active platform
         // https://github.com/genericptr/pascal-language-server/releases/download/x86_64-darwin/pasls
         // if (!executable) {
