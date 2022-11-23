@@ -1,7 +1,7 @@
 ## [Unreleased]
 - Using lazarus project files 
 
-## [1.1.5] - 2022-10-15
+## [1.1.5] - 2022-11-23
 ## fixed:
 - can't start language server on linux 
 
