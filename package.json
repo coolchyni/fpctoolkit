@@ -2,7 +2,7 @@
   "name": "fpctoolkit",
   "displayName": "FreePascal Toolkit",
   "description": "Free pascal compile and build.",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "engines": {
     "vscode": "^1.44.0"
   },
@@ -189,6 +189,33 @@
                   "type": "string"
                 },
                 "description": "%task.buildOption.customOptions%"
+              }
+            }
+          },
+          "buildEvent":{
+            "type":"object",
+            "description": "Event to run command." ,
+            "properties": {
+              "before_build":{
+                "type":"array",
+                "description": "Run commands before build.",
+                "items": {
+                  "type":"string"
+                }
+              },
+              "after_build_success":{
+                "type":"array",
+                "description": "Run commands after build success.",
+                "items": {
+                  "type":"string"
+                }
+              },
+              "after_build_failure":{
+                "type":"array",
+                "description": "Run commands after build failure.",
+                "items": {
+                  "type":"string"
+                }
               }
             }
           },

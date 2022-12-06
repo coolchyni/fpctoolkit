@@ -4,18 +4,12 @@
  *--------------------------------------------------------------------------------------------*/
 import * as vscode from 'vscode';
 import { CompileOption } from '../languageServer/options';
-import { pathToFileURL } from 'url';
 import * as ChildProcess from "child_process";
 import path = require('path');
 import { TerminalEscape, TE_Style } from '../common/escape';
 import * as fs from 'fs';
-import { threadId } from 'worker_threads';
-import { SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION } from 'constants';
-import { resolve } from 'path';
-import { configuration } from '../common/configuration';
 import { client } from '../extension';
 import { DiagnosticSeverity } from 'vscode';
-import { url } from 'inspector';
 
 export class BuildOption {
 	targetOS?: string;
@@ -31,6 +25,11 @@ export class BuildOption {
 	msgIgnore?: Number[];
 };
 
+export class BuildEvent{
+	before_build?: string[];
+	after_build_success?:string[];
+	after_build_failure?:string[];
+}
 
 export class FpcTaskDefinition implements vscode.TaskDefinition {
 	[name: string]: any;
@@ -40,6 +39,7 @@ export class FpcTaskDefinition implements vscode.TaskDefinition {
 	cleanExt?: string;
 	inherited?: string;
 	buildOption?: BuildOption;
+	buildEvent?:BuildEvent;
 }
 
 
@@ -214,7 +214,37 @@ export class FpcTask extends vscode.Task {
 				}
 
 				let terminal = new FpcBuildTaskTerminal(cwd, fpcpath!);
+				if(taskDefinition.buildEvent){
+					if(taskDefinition.buildEvent.before_build){
+						let commands=taskDefinition.buildEvent.before_build;
+						terminal.event_before_build=()=>{
+							for (const cmd of commands) {
+								let result=ChildProcess.execSync(cmd);
+								terminal.emit(result.toString())
+							}
+						}
+					}
+					if(taskDefinition.buildEvent.after_build_failure || taskDefinition.buildEvent.after_build_success){
+						let commands_failure=taskDefinition.buildEvent.after_build_failure;
+						let commands_success=taskDefinition.buildEvent.after_build_success;
+						terminal.event_after_build=(success)=>{
+							if(success && commands_success){
+								for (const cmd of commands_success) {
+									let result=ChildProcess.execSync(cmd);
+									terminal.emit(result.toString())
+								}
+							}else if(commands_failure)
+								for (const cmd of commands_failure) {
+									let result=ChildProcess.execSync(cmd);
+									terminal.emit(result.toString())
+								}
+							
+							}
+							
+					}
 
+				}
+				
 				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
 				if (this._BuildMode == BuildMode.rebuild) {
 					terminal.args.push('-B');
@@ -240,6 +270,9 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 	private closeEmitter = new vscode.EventEmitter<number>();
 	onDidClose: vscode.Event<number> = this.closeEmitter.event;
 
+	public event_before_build?:()=>void;
+	public event_after_build?:(success:boolean)=>void;
+
 	private process?: ChildProcess.ChildProcess;
 	protected buffer: string = "";
 	protected errbuf: string = "";
@@ -252,7 +285,6 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 		this.onDidClose((e) => {
 			//vscode.window.showInformationMessage('onDidClose');	
 		});
-
 	}
 	code: number | undefined;
 
@@ -358,6 +390,9 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 			this.buffer = "";
 			this.errbuf = "";
 			this.diagMaps.clear();
+			if(this.event_before_build){
+				this.event_before_build();
+			}
 			this.emit(TerminalEscape.apply({ msg: `${this.fpcpath} ${this.args.join(' ')}\r\n`, style: [TE_Style.Bold] }));
 			this.process = ChildProcess.spawn(this.fpcpath, this.args, { cwd: this.cwd });
 
@@ -369,6 +404,9 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 				this.buildend().then(() => {
 					this.closeEmitter.fire(code);
 				});
+				if(this.event_after_build){
+					this.event_after_build(code==0);
+				}
 				//This is a exitcode,not zero meens failure.
 
 

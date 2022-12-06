@@ -78,8 +78,15 @@ cleanExt|string|指定执行清理项目时需要清除的文件名后缀. 输�
 buildOption|object|build 选项
 inherited|string| 被继承的任务名
 
+### buildEvent
+字段   | 类型  |  描述  |
+-------| ---- |:---------------
+before_build  | string[] | 编译前执行的命令
+after_build_success | string[]| 编译成功后执行的命令
+after_build_failure | string []|编译失败后执行的命令
+
 ### buildOptions
-Field  | type | Description  |
+字段   | 类型  |  描述  |
 -------| ---- |:---------------
 targetOS  | string | 目标操作系统 (-T).  eg. `linux` `win64`
 targetCPU |string| 目标CPU族 (-P). eg. `x86_64` `i386`

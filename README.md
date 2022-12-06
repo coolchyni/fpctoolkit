@@ -84,6 +84,14 @@ cleanExt|string|file extensions for clean file in unitOutputDir. use * for clear
 buildOption|object|build options
 inherited|string| inherit from other task
 
+### buildEvent
+Field  | type | Description  |
+-------| ---- |:---------------
+before_build  | string[] | Run commands before build
+after_build_success | string[]| Run commands after build success.
+after_build_failure | string []| Run commands after build failure. 
+
+
 ### buildOptions
 Field  | type | Description  |
 -------| ---- |:---------------
