@@ -1,7 +1,7 @@
 ## [Unreleased]
 - Using lazarus project files 
 
-## [1.1.7] - 2022-12-16
+## [1.1.8] - 2022-12-16
 ## add:
 -  add error handle for client to avoid crashing
 -  change maximumCompletions default to 50
