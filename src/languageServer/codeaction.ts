@@ -23,8 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
 	
 
 	context.subscriptions.push(
-		vscode.languages.registerCodeActionsProvider('objectpascal', new Emojinfo(), {
-			providedCodeActionKinds: Emojinfo.providedCodeActionKinds
+		vscode.languages.registerCodeActionsProvider('objectpascal', new FpcCodeAction(), {
+			providedCodeActionKinds: FpcCodeAction.providedCodeActionKinds
 		})
 	);
 
@@ -141,7 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
 /**
  * Provides code actions corresponding to diagnostic problems.
  */
-export class Emojinfo implements vscode.CodeActionProvider {
+export class FpcCodeAction implements vscode.CodeActionProvider {
 
 	public static readonly providedCodeActionKinds = [
 		vscode.CodeActionKind.QuickFix

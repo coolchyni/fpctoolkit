@@ -8,6 +8,7 @@ import path = require('path');
 import * as vscode from 'vscode';
 import { workspace } from 'vscode';
 import {
+    State,
     NotificationType,
     LanguageClient,
     ServerOptions,
@@ -17,13 +18,21 @@ import {
     ShowMessageParams,
     MessageType,
     ExecuteCommandRequest,
-    ExecuteCommandParams} from 'vscode-languageclient/node';
+    ExecuteCommandParams,
+    ErrorHandler,
+    Message,
+    ErrorHandlerResult,
+    ErrorAction,
+    CloseHandlerResult,
+    CloseAction} from 'vscode-languageclient/node';
 
 import { FpcProjectProvider } from '../providers/project';
 import * as util from '../common/util';
 import { CompileOption, InitializationOptions } from "./options";
 import { env } from 'process';
 import * as fs from 'fs-extra';
+import { client, logger } from '../extension';
+import { ClientRequest } from 'http';
 
 interface InputRegion {
     startLine: number;
@@ -125,7 +134,7 @@ function GetEnvironmentVariables(): {} {
 interface myConfiguration extends vscode.WorkspaceConfiguration {
     cwd: string;
 }
-export class TLangClient {
+export class TLangClient implements ErrorHandler  {
     private client: LanguageClient | undefined;
     private targetOS?: string;
     private targetCPU?: string;
@@ -135,6 +144,26 @@ export class TLangClient {
     ) {
         this.client = undefined;
     };
+
+      /**
+     * An error has occurred while writing or reading from the connection.
+     *
+     * @param error - the error received
+     * @param message - the message to be delivered to the server if know.
+     * @param count - a count indicating how often an error is received. Will
+     *  be reset if a message got successfully send or received.
+     */
+    error(error: Error, message: Message | undefined, count: number | undefined): ErrorHandlerResult{
+        logger.appendLine(error.name+' '+error.message);
+        return  {action:ErrorAction.Continue} as ErrorHandlerResult;
+    }
+    /**
+    * The connection to the server got closed.
+    */
+    closed(): CloseHandlerResult{
+        logger.appendLine("Server closed.");
+        return  {action:CloseAction.Restart} as CloseHandlerResult;
+    }
 
     private getLanguageServerFileName(): string {
         let extensionProcessName: string = 'pasls';
@@ -358,6 +387,7 @@ export class TLangClient {
         // client extensions configure their server
         let clientOptions: LanguageClientOptions = {
             initializationOptions: initializationOptions,
+            errorHandler: this,
             // workspaceFolder: folder,
             documentSelector: [
                 { scheme: 'file', language: 'objectpascal' },
@@ -366,16 +396,7 @@ export class TLangClient {
         }
 
         this.client = new LanguageClient('fpctoolkit.lsp', 'Free Pascal Language Server', serverOptions, clientOptions);
-
-
-        // this.client.onReady().then(() => {
-
-
-        //     //todo 在注释里也会触发自动完成 ，需要定制 CompletionItemProvider
-        //     //todo 在IFDEF 里的无效区域 要变灰 （服务端+客户端实现）
-        //     //todo 文档改名或关闭 需要清除缓存 （服务端实现）
-
-        // });
+        
     };
     public onDidChangeVisibleTextEditor(editor: vscode.TextEditor): void {
 
