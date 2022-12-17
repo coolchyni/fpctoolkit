@@ -1,6 +1,12 @@
 ## [Unreleased]
 - Using lazarus project files 
 
+## [1.1.9] - 2022-12-17
+## add:
+-  optimize clean up and build
+## fixed:
+-  can't rename symbol on version 1.1.8
+
 ## [1.1.8] - 2022-12-16
 ## add:
 -  add error handle for client to avoid crashing

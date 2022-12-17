@@ -1,7 +1,7 @@
 {
     "project.build": "Build",
-    "project.rebuild": "ReBuild",
-    "project.clear": "Clear",
+    "project.rebuild": "Clean up and build",
+    "project.clear": "Clean up",
     "project.open": "Open",
     "project.newconfig": "New Build Config",
     "project.setdefault": "Set As Default",

@@ -113,24 +113,27 @@ export class FpcCommandManager {
         if (node.level === 0) {
 
         } else {
-            vscode.tasks.fetchTasks({ type: 'fpc' }).then((e) => {
+            await this.projectClean(node);
+            this.ProjectBuild(node);
 
-                for (const task of e) {
-                    if (task.name === node.label) {
-                        let newtask=taskProvider.taskMap.get(task.name);
-                        if(newtask){
-                            (newtask as FpcTask).BuildMode=BuildMode.rebuild;   
-                        }
+            // vscode.tasks.fetchTasks({ type: 'fpc' }).then((e) => {
+
+            //     for (const task of e) {
+            //         if (task.name === node.label) {
+            //             let newtask=taskProvider.taskMap.get(task.name);
+            //             if(newtask){
+            //                 (newtask as FpcTask).BuildMode=BuildMode.rebuild;   
+            //             }
                         
-                        vscode.tasks.executeTask(task).then((e)=>{
-                            console.log(e.task.name);
-                        });
+            //             vscode.tasks.executeTask(task).then((e)=>{
+            //                 console.log(e.task.name);
+            //             });
 
-                        return;
-                    }
+            //             return;
+            //         }
    
-                }
-            });
+            //     }
+            // });
 
         }
 
@@ -221,7 +224,7 @@ end.`;
         let cleanExt = definition?.cleanExt;
         if (fs.existsSync(dir)) {
             try {
-                let exts = ['.o', '.ppu', '.lfm', '.a', '.or', '.res','.rsj'];
+                let exts = ['.o', '.ppu', '.lfm', '.a', '.or', '.res','.rsj','.obj'];
                 let isall = false;
                 if (cleanExt) {
                     if ((<String>cleanExt).trim() == '*') {
