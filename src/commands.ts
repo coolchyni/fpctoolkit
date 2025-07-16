@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FpcItem } from './providers/project';
+import { FpcItem, ProjectType } from './providers/project';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
@@ -28,6 +28,12 @@ export class FpcCommandManager {
     }
     ProjectAdd = async (node: FpcItem) => {
         if (node.level === 0) {
+            // 如果是Lazarus项目，不允许添加新的构建配置，因为配置来自.lpi文件
+            if (node.projectType === ProjectType.Lazarus) {
+                vscode.window.showInformationMessage('Lazarus项目的构建配置由.lpi文件管理，无需手动添加。');
+                return;
+            }
+
             let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
             let inp = await vscode.window.showQuickPick(['debug', 'release', 'other...'], { canPickMany: false });
             if (!inp) {

@@ -11,6 +11,12 @@ import { pathExists } from 'fs-extra';
 import { Event } from 'vscode-languageclient';
 import { clearTimeout } from 'timers';
 import { TIMEOUT } from 'dns';
+import { LazarusProjectParser, LazarusProjectInfo } from './lazarus';
+
+export enum ProjectType {
+	FPC = 'fpc',
+	Lazarus = 'lazarus'
+}
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
@@ -18,6 +24,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	readonly onDidChangeTreeData: vscode.Event<FpcItem | undefined | void> = this._onDidChangeTreeData.event;
 	private watch!: vscode.FileSystemWatcher;
 	private watchlpr!: vscode.FileSystemWatcher;
+	private watchlpi!: vscode.FileSystemWatcher; // 监控Lazarus项目文件
 	private watchSource!: vscode.FileSystemWatcher; // 监控源文件变化
 	public defaultFpcItem?: FpcItem = undefined;
 	private config!:vscode.WorkspaceConfiguration;
@@ -48,6 +55,15 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			this.refresh();
 		});
 		this.watchlpr.onDidDelete(() => {
+			this.refresh();
+		});
+
+		// 监控Lazarus项目文件
+		this.watchlpi = vscode.workspace.createFileSystemWatcher("**/*.lpi", false, true, false);
+		this.watchlpi.onDidCreate(() => {
+			this.refresh();
+		});
+		this.watchlpi.onDidDelete(() => {
 			this.refresh();
 		});
 
@@ -113,7 +129,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					task.file,
 					true,
 					true,
-					[task]
+					[task],
+					ProjectType.FPC
 				);
 				this.defaultFpcItem.description = 'default';
 				return;
@@ -130,7 +147,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					task.file,
 					true,
 					false,
-					[task]
+					[task],
+					ProjectType.FPC
 				);
 				this.defaultFpcItem.description = 'default';
 				this.defaultFpcItem.isDefault = true;
@@ -143,6 +161,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	dispose() {
 		this.watch?.dispose();
 		this.watchlpr?.dispose();
+		this.watchlpi?.dispose();
 		this.watchSource?.dispose();
 	}
 
@@ -189,7 +208,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					element.file,
 					element.fileexist,
 					task.group?.isDefault,
-					[task]
+					[task],
+					element.projectType
 				);
 				items.push(item);
 				if (item.isDefault) {
@@ -233,7 +253,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 								e.file,
 								true,
 								e.group?.isDefault,
-								[e]
+								[e],
+								ProjectType.FPC
 							)
 						);
 					} else {
@@ -266,16 +287,41 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 									vscode.TreeItemCollapsibleState.Expanded,
 									file,
 									true,
-									false
-
+									false,
+									undefined,
+									ProjectType.FPC
 								)
 							);
 
 						} catch (error) {
 							vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
 						}
-
-
+					} else if (file.toLowerCase().endsWith('.lpi')) {
+						// 处理Lazarus项目文件
+						try {
+							const lpiPath = path.join(item.uri.fsPath, file);
+							const projectInfo = LazarusProjectParser.parseLpiFile(lpiPath);
+							
+							if (projectInfo) {
+								const taskDef = LazarusProjectParser.createTaskDefinitionFromLpi(projectInfo, lpiPath);
+								
+								itemMaps.set(
+									file,
+									new FpcItem(
+										0,
+										file,
+										vscode.TreeItemCollapsibleState.Expanded,
+										file,
+										true,
+										false,
+										[taskDef],
+										ProjectType.Lazarus
+									)
+								);
+							}
+						} catch (error) {
+							vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
+						}
 					}
 				}
 			});
@@ -383,15 +429,23 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		return documentText.indexOf('"label": "'+taskItem.label+'"');
 	}
 	private async open(selection: FpcItem) {
+		if (selection.projectType === ProjectType.Lazarus) {
+			// 对于Lazarus项目，打开.lpi文件
+			const lpiFile = vscode.Uri.file(path.join(this.workspaceRoot, selection.file));
+			if (fs.existsSync(lpiFile.fsPath)) {
+				const document: vscode.TextDocument = await vscode.workspace.openTextDocument(lpiFile);
+				await vscode.window.showTextDocument(document);
+			}
+		} else {
+			// 对于FPC项目，打开tasks.json
+			let taskfile = vscode.Uri.file(path.join(this.workspaceRoot, '.vscode', 'tasks.json'))
 
-		let taskfile = vscode.Uri.file(path.join(this.workspaceRoot, '.vscode', 'tasks.json'))
-
-		fs.existsSync(taskfile.fsPath)
-		{
-			const document: vscode.TextDocument = await vscode.workspace.openTextDocument(taskfile);
-			const offset = this.findJsonDocumentPosition(document.getText(), selection);
-			const position = document.positionAt(offset);
-			await vscode.window.showTextDocument(document, { selection: new vscode.Selection(position, position) });
+			if (fs.existsSync(taskfile.fsPath)) {
+				const document: vscode.TextDocument = await vscode.workspace.openTextDocument(taskfile);
+				const offset = this.findJsonDocumentPosition(document.getText(), selection);
+				const position = document.positionAt(offset);
+				await vscode.window.showTextDocument(document, { selection: new vscode.Selection(position, position) });
+			}
 		}
 	}
 
@@ -407,11 +461,12 @@ export class FpcItem extends vscode.TreeItem {
 		public readonly file: string,
 		public fileexist: boolean,
 		public isDefault: boolean,
-		public tasks?: any[]
+		public tasks?: any[],
+		public projectType: ProjectType = ProjectType.FPC
 	) {
 		super(label, collapsibleState);
 		if (level === 0) {
-			this.contextValue = 'fpcproject';
+			this.contextValue = projectType === ProjectType.Lazarus ? 'lazarusproject' : 'fpcproject';
 		} else {
 			this.contextValue = 'fpcbuild';
 		}
@@ -427,7 +482,16 @@ export class FpcItem extends vscode.TreeItem {
 			this.command = command;
 		}
 		
-		this.iconPath=this.level? new vscode.ThemeIcon('wrench'):path.join(__filename, '..','..',  'images','pascal-project.png');
+		// 根据项目类型设置不同的图标
+		if (this.level === 0) {
+			if (projectType === ProjectType.Lazarus) {
+				this.iconPath = new vscode.ThemeIcon('package');
+			} else {
+				this.iconPath = path.join(__filename, '..','..',  'images','pascal-project.png');
+			}
+		} else {
+			this.iconPath = new vscode.ThemeIcon('wrench');
+		}
 
 		//https://code.visualstudio.com/api/references/icons-in-labels
 
