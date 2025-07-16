@@ -18,10 +18,12 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	readonly onDidChangeTreeData: vscode.Event<FpcItem | undefined | void> = this._onDidChangeTreeData.event;
 	private watch!: vscode.FileSystemWatcher;
 	private watchlpr!: vscode.FileSystemWatcher;
-	public defaultFtpItem?: FpcItem = undefined;
+	private watchSource!: vscode.FileSystemWatcher; // 监控源文件变化
+	public defaultFpcItem?: FpcItem = undefined;
 	private config!:vscode.WorkspaceConfiguration;
 	private defaultCompileOption?:CompileOption=undefined;
 	private timeout?:NodeJS.Timeout=undefined;
+	private _hasSourceFileChanged: boolean = false; // 标志源文件是否有变化
 	constructor(private workspaceRoot: string, context: vscode.ExtensionContext) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
@@ -49,11 +51,99 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			this.refresh();
 		});
 
+		// 监控所有 Pascal 源文件的变化
+		this.watchSource = vscode.workspace.createFileSystemWatcher("**/*.{pas,pp,lpr,inc,p,dpr,dpk,lfm}", false, false, false);
+		this.watchSource.onDidChange(() => {
+			this._hasSourceFileChanged = true;
+		});
+		this.watchSource.onDidCreate(() => {
+			this._hasSourceFileChanged = true;
+		});
+		this.watchSource.onDidDelete(() => {
+			this._hasSourceFileChanged = true;
+		});
+
+	}
+
+	/**
+	 * 检查源文件是否有变化
+	 */
+	public hasSourceFileChanged(): boolean {
+		return this._hasSourceFileChanged;
+	}
+
+	/**
+	 * 重置源文件变化标志
+	 */
+	public resetSourceFileChanged(): void {
+		this._hasSourceFileChanged = false;
+	}
+
+	/**
+	 * 确保获取到默认的FPC项目
+	 * 如果当前没有默认项目，会主动计算并设置
+	 */
+	public async ensureDefaultFpcItem(): Promise<FpcItem | undefined> {
+		if (this.defaultFpcItem) {
+			return this.defaultFpcItem;
+		}
+
+		// 主动计算默认项目
+		await this.computeDefaultFpcItem();
+		return this.defaultFpcItem;
+	}
+
+	/**
+	 * 计算默认的FPC项目
+	 */
+	private async computeDefaultFpcItem(): Promise<void> {
+		this.config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+		
+		if (!this.config?.tasks) {
+			return;
+		}
+
+		// 首先查找明确标记为默认的任务
+		for (const task of this.config.tasks) {
+			if (task.type === 'fpc' && task.group?.isDefault) {
+				this.defaultFpcItem = new FpcItem(
+					1,
+					task.label,
+					vscode.TreeItemCollapsibleState.None,
+					task.file,
+					true,
+					true,
+					[task]
+				);
+				this.defaultFpcItem.description = 'default';
+				return;
+			}
+		}
+
+		// 如果没有明确的默认任务，使用第一个FPC任务
+		for (const task of this.config.tasks) {
+			if (task.type === 'fpc') {
+				this.defaultFpcItem = new FpcItem(
+					1,
+					task.label,
+					vscode.TreeItemCollapsibleState.None,
+					task.file,
+					true,
+					false,
+					[task]
+				);
+				this.defaultFpcItem.description = 'default';
+				this.defaultFpcItem.isDefault = true;
+				return;
+			}
+		}
 	}
 
 
 	dispose() {
-		throw new Error("Method not implemented.");
+		this.watch?.dispose();
+		this.watchlpr?.dispose();
+		this.watchSource?.dispose();
 	}
 
 
@@ -86,9 +176,9 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 	getChildren(element?: FpcItem | undefined): vscode.ProviderResult<FpcItem[]> {
 
-
 		if (element) {
-			this.defaultFtpItem=undefined;
+			// 处理子项时，临时保存当前的默认项目，避免丢失
+			let tempDefaultItem = this.defaultFpcItem;
 			let items: FpcItem[] = [];
 			
 			element.tasks?.forEach((task) => {
@@ -103,14 +193,22 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				);
 				items.push(item);
 				if (item.isDefault) {
-					this.defaultFtpItem = item;
+					this.defaultFpcItem = item;
 				}
 			});
-			if(!this.defaultFtpItem && items.length>0){
-				this.defaultFtpItem=items[0];
-				this.defaultFtpItem.description='default';
-				this.defaultFtpItem.isDefault=true;
+			
+			// 如果在当前元素的任务中没有找到默认项目，但有任务存在
+			if (!this.defaultFpcItem && items.length > 0) {
+				this.defaultFpcItem = items[0];
+				this.defaultFpcItem.description = 'default';
+				this.defaultFpcItem.isDefault = true;
 			}
+			
+			// 如果仍然没有默认项目，恢复之前的默认项目
+			if (!this.defaultFpcItem && tempDefaultItem) {
+				this.defaultFpcItem = tempDefaultItem;
+			}
+			
 			return Promise.resolve(items);
 
 		} else {
@@ -186,11 +284,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				items.push(e);
 			}
 
-
-			//});  
-			// if(info.ischanged){
-			// 	config.update("tasks",info.tasks,vscode.ConfigurationTarget.WorkspaceFolder);
-			// }
+			// 确保设置默认项目（在根节点处理完毕后）
+			this.computeDefaultFpcItem();
 
 			return Promise.resolve(items);
 		}

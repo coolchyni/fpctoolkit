@@ -32,7 +32,8 @@
   },
   "activationEvents": [
     "onView:FpcProjectExplorer",
-    "onLanguage:objectpascal"
+    "onLanguage:objectpascal",
+     "onDebug"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -417,6 +418,11 @@
           "fpctoolkit.format.cfgpath": {
             "type": "string",
             "description": "%config.format.cfgpath%"
+          },
+          "fpctoolkit.debug.autoBuild": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.debug.autoBuild%"
           }
 
         }

@@ -50,5 +50,6 @@
     "views.welcome":"没有发现工程文件.\n[创建新项目](command:fpctoolkit.project.newproject)",
     "config.format.tabsize": "制表符(tab)转空格数.",
     "config.format.enabled": "启用源码格式化(使用Jedi).",
-    "config.format.cfgpath": "格式化配置文件路径(jcfsettings.cfg)."
+    "config.format.cfgpath": "格式化配置文件路径(jcfsettings.cfg).",
+    "config.debug.autoBuild": "当文件有更改时，在调试前自动编译默认项目"
 }

@@ -1,8 +1,6 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { FpcItem, FpcProjectProvider } from './providers/project';
-import { diagCollection, FpcTaskProvider,taskProvider } from './providers/task';
+import { diagCollection, FpcTaskProvider, taskProvider, FpcTask, BuildMode } from './providers/task';
 import { FpcCommandManager } from './commands';
 import * as util from './common/util';
 import {TLangClient} from './languageServer/client';
@@ -10,9 +8,147 @@ import { configuration } from './common/configuration';
 import { JediFormatter } from './formatter';
 import { format } from 'path';
 import * as MyCodeAction from  './languageServer/codeaction';
+import * as fs from 'fs';
+import * as path from 'path';
+import { promisify } from 'util';
+
+const stat = promisify(fs.stat);
 export let client:TLangClient;
 export let formatter:JediFormatter;
 export let logger:vscode.OutputChannel;
+export let projectProvider: FpcProjectProvider;
+export let commandManager: FpcCommandManager;
+
+// Check file updates and auto-compile before debugging
+async function checkAndBuildBeforeDebug(): Promise<void> {
+    try {
+        // Check if auto-build feature is enabled
+        const config = vscode.workspace.getConfiguration('fpctoolkit');
+        const autoBuildEnabled = config.get<boolean>('debug.autoBuild', true);
+        
+        if (!autoBuildEnabled) {
+            logger.appendLine('Debug pre-check: Auto-build feature is disabled');
+            return;
+        }
+
+        if (!projectProvider) {
+            console.log('Project provider not initialized');
+            return;
+        }
+
+        // Use file system watcher to check if files have changed
+        if (!projectProvider.hasSourceFileChanged()) {
+            //logger.appendLine('Debug pre-check: No source file changes, skipping compilation');
+            return;
+        }
+
+        logger.appendLine('Debug pre-check: Source file changes detected, compilation needed');
+
+        // Get default project compile options
+        const defaultCompileOption = await projectProvider.GetDefaultTaskOption();
+        if (!defaultCompileOption) {
+            logger.appendLine('Debug pre-check: Unable to get default compile options');
+            return;
+        }
+
+        // Wait for task provider initialization, maximum 5 seconds
+        let tasks: vscode.Task[] = [];
+        let retryCount = 0;
+        const maxRetries = 10; // Maximum 10 retries, 500ms each
+        
+        while (tasks.length === 0 && retryCount < maxRetries) {
+            tasks = await vscode.tasks.fetchTasks({ type: 'fpc' });
+            if (tasks.length === 0) {
+                logger.appendLine(`Debug pre-check: Waiting for FPC tasks to load... (${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retryCount++;
+            }
+        }
+
+        if (tasks.length === 0) {
+            logger.appendLine('Debug pre-check: No FPC tasks found, skipping auto-compilation');
+            return;
+        }
+
+        // Get default project and execute compilation
+        const defaultProject = await projectProvider.ensureDefaultFpcItem();
+        
+        if (!defaultProject) {
+            // Refresh project list, try to get default project
+            await new Promise<void>((resolve) => {
+                const disposable = projectProvider.onDidChangeTreeData(() => {
+                    disposable.dispose();
+                    resolve();
+                });
+                projectProvider.refresh();
+            });
+            
+            // Try to get default project again
+            const retryDefaultProject = await projectProvider.ensureDefaultFpcItem();
+            if (!retryDefaultProject) {
+                logger.appendLine('Debug pre-check: No default FPC project found');
+                return;
+            }
+        }
+
+        // Find default task
+        const defaultTaskName = (await projectProvider.ensureDefaultFpcItem())?.label;
+        if (!defaultTaskName) {
+            logger.appendLine('Debug pre-check: No default task name found');
+            return;
+        }
+
+        const defaultTask = tasks.find(task => task.name === defaultTaskName);
+        if (!defaultTask) {
+            logger.appendLine(`Debug pre-check: Task named "${defaultTaskName}" not found`);
+            return;
+        }
+
+        // If compilation is needed, execute compilation task
+        //logger.show(true); // Show output window
+        logger.appendLine('Debug auto-compilation: File changes detected, starting compilation');
+        
+        try {
+            // Set task build mode to normal mode
+            let newtask = taskProvider.taskMap.get(defaultTask.name);
+            if (newtask) {
+                (newtask as FpcTask).BuildMode = BuildMode.normal;   
+            }
+            
+            // Execute task
+            const execution = await vscode.tasks.executeTask(defaultTask);
+            
+            // Wait for task completion
+            await new Promise<void>((resolve, reject) => {
+                const disposable = vscode.tasks.onDidEndTask((e) => {
+                    if (e.execution === execution) {
+                        disposable.dispose();
+                        // Reset source file change flag
+                        projectProvider.resetSourceFileChanged();
+                        logger.appendLine('Debug auto-compilation: Compilation completed');
+                        resolve();
+                    }
+                });
+                
+                // Set timeout to avoid infinite waiting
+                setTimeout(() => {
+                    disposable.dispose();
+                    logger.appendLine('Debug auto-compilation: Compilation timeout');
+                    reject(new Error('Compilation timeout'));
+                }, 30000); // 30 second timeout
+            });
+            
+        } catch (buildError) {
+            logger.appendLine(`Debug auto-compilation: Compilation failed - ${buildError}`);
+            throw buildError;
+        }
+    } catch (error) {
+        const errorMsg = `Error occurred during auto-compilation: ${error}`;
+        console.error(errorMsg);
+        logger.appendLine(errorMsg);
+        vscode.window.showErrorMessage(errorMsg);
+    }
+}
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -22,6 +158,23 @@ export async function activate(context: vscode.ExtensionContext) {
 		return;
 	}
 
+	 // Register debug configuration provider to check and compile project before debugging starts
+	vscode.debug.registerDebugConfigurationProvider('*', {
+		resolveDebugConfiguration: async (folder, config, token) => {
+			// Check for file updates before debugging starts and auto-compile default project if needed
+			await checkAndBuildBeforeDebug();
+			return config;
+		}
+	});
+
+	 // Register debug session start events (keep original logic)
+	vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
+		console.log('Custom event received:', event);
+	});
+	 vscode.debug.onDidStartDebugSession(async (session) => {
+        console.log('Debug session started:', session.name);
+    });
+
 	logger=vscode.window.createOutputChannel('fpctoolkit');
 
 	vscode.window.onDidChangeVisibleTextEditors(onDidChangeVisibleTextEditors);
@@ -30,14 +183,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
 
-	let commands = new FpcCommandManager(workspaceRoot);
-	commands.registerAll(context);
+	commandManager = new FpcCommandManager(workspaceRoot);
+	commandManager.registerAll(context);
 
 	formatter=new JediFormatter();
 	formatter.doInit();
 	
-	let ProjectProvider= new FpcProjectProvider(workspaceRoot,context);
-	vscode.window.registerTreeDataProvider("FpcProjectExplorer", ProjectProvider);
+	projectProvider = new FpcProjectProvider(workspaceRoot,context);
+	vscode.window.registerTreeDataProvider("FpcProjectExplorer", projectProvider);
 
 	//taskProvider=new FpcTaskProvider(workspaceRoot);
 	context.subscriptions.push(vscode.tasks.registerTaskProvider(
@@ -50,7 +203,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	MyCodeAction.activate(context);
 
-	client=new TLangClient(ProjectProvider);
+	client=new TLangClient(projectProvider);
 	await client.doInit();
 	client.start();
 
