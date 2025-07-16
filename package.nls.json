@@ -51,6 +51,7 @@
 
     "config.format.tabsize": "Table space size.",
     "config.format.enabled": "Enable jedi formatter.",
-    "config.format.cfgpath": "The path of jcfsettings.cfg."
+    "config.format.cfgpath": "The path of jcfsettings.cfg.",
+    "config.debug.autoBuild": "Enable automatic build of default project before debugging when files have changed"
 
 }

@@ -2,7 +2,7 @@
   "name": "fpctoolkit",
   "displayName": "FreePascal Toolkit",
   "description": "Free pascal compile and build.",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "engines": {
     "vscode": "^1.44.0"
   },
@@ -32,7 +32,8 @@
   },
   "activationEvents": [
     "onView:FpcProjectExplorer",
-    "onLanguage:objectpascal"
+    "onLanguage:objectpascal",
+    "onDebug"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -114,6 +115,11 @@
       {
         "command": "fpctoolkit.project.setdefault",
         "title": "%project.setdefault%"
+      },
+      {
+        "command": "fpctoolkit.project.openWithLazarus",
+        "title": "Open with Lazarus",
+        "icon": "$(link-external)"
       }
     ],
     "keybindings": [
@@ -152,9 +158,9 @@
             "type": "string",
             "description": "%task.cleanExt%"
           },
-          "inherited":{
-             "type":"string",
-             "description": "%task.inherited%"
+          "inherited": {
+            "type": "string",
+            "description": "%task.inherited%"
           },
           "windows": {
             "type": "object",
@@ -192,29 +198,29 @@
               }
             }
           },
-          "buildEvent":{
-            "type":"object",
-            "description": "Event to run command." ,
+          "buildEvent": {
+            "type": "object",
+            "description": "Event to run command.",
             "properties": {
-              "before_build":{
-                "type":"array",
+              "before_build": {
+                "type": "array",
                 "description": "Run commands before build.",
                 "items": {
-                  "type":"string"
+                  "type": "string"
                 }
               },
-              "after_build_success":{
-                "type":"array",
+              "after_build_success": {
+                "type": "array",
                 "description": "Run commands after build success.",
                 "items": {
-                  "type":"string"
+                  "type": "string"
                 }
               },
-              "after_build_failure":{
-                "type":"array",
+              "after_build_failure": {
+                "type": "array",
                 "description": "Run commands after build failure.",
                 "items": {
-                  "type":"string"
+                  "type": "string"
                 }
               }
             }
@@ -285,15 +291,15 @@
                   4
                 ]
               },
-              "forceRebuild":{
-                "type":"boolean",
+              "forceRebuild": {
+                "type": "boolean",
                 "description": "%task.buildOption.forceRebuild%",
-                "default":false
+                "default": false
               },
-              "msgIgnore":{
-                "type":"array",
+              "msgIgnore": {
+                "type": "array",
                 "items": {
-                  "type":"number"
+                  "type": "number"
                 },
                 "description": "%task.buildOption.msgIgnore%"
               },
@@ -313,35 +319,39 @@
       "view/item/context": [
         {
           "command": "fpctoolkit.project.build",
-          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@1"
         },
         {
           "command": "fpctoolkit.project.rebuild",
-          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@2"
         },
         {
           "command": "fpctoolkit.project.clean",
-          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@3"
         },
         {
           "command": "fpctoolkit.project.setdefault",
-          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcprojectcfg@4"
         },
         {
           "command": "fpctoolkit.project.add",
-          "when": "view == FpcProjectExplorer && viewItem==fpcproject",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcproject)",
           "group": "fpcproject@0"
         },
         {
+          "command": "fpctoolkit.project.openWithLazarus",
+          "when": "view == FpcProjectExplorer && viewItem==lazarusproject",
+          "group": "lazarusproject@1"
+        },
+        {
           "command": "fpctoolkit.project.build",
-          "when": "view == FpcProjectExplorer && viewItem==fpcbuild",
+          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "inline"
         }
-      
       ]
     },
     "configuration": [
@@ -411,14 +421,18 @@
           },
           "fpctoolkit.format.enabled": {
             "type": "boolean",
-            "default":"true",
+            "default": "true",
             "description": "%config.format.enabled%"
           },
           "fpctoolkit.format.cfgpath": {
             "type": "string",
             "description": "%config.format.cfgpath%"
+          },
+          "fpctoolkit.debug.autoBuild": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.debug.autoBuild%"
           }
-
         }
       },
       {
@@ -564,8 +578,8 @@
   },
   "dependencies": {
     "@types/fs-extra": "9.0.2",
+    "fast-xml-parser": "^5.2.5",
     "fs-extra": "9.0.1",
-    "tsc": "^2.0.4",
     "vscode-languageclient": "^8.0.1",
     "vscode-nls": "^3.2.5"
   },
@@ -581,7 +595,7 @@
     "glob": "^7.2.0",
     "mocha": "^9.2.1",
     "rimraf": "^3.0.2",
-    "typescript": "^3.9.10"
+    "typescript": "^5.8.3"
   },
   "homepage": "https://github.com/coolchyni/fpctoolkit#readme"
 }

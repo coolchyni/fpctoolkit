@@ -11,52 +11,63 @@
 
 - 安装并使用 [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) 进行程序调试
 
-## 功能列表
-- 编译Free Pascal 程序
-	- 构建项目
-	- 清理和构建
-	- 清理
+## 功能特性
 
-- 可视化任务管理
-	- 支持自定义任务
-	- 支持从其他任务继承
-- 快速代码模版
-	- 包含非常多的代码模版，用于快速输入代码.
-		* class
-		* if-else
-		* begin-end
-		* ... 
-- 智能代码补全，支持函数，过程，类，变量，关键字...
+### 核心功能
+- **项目管理** - 构建、重建、清理 FreePascal 和 Lazarus 程序
+- **Lazarus LPI 支持** - 完整的项目文件支持，多模式构建管理
+- **高级构建系统** - 自定义任务继承，跨平台编译支持
+- **代码智能** - 自动补全、跳转定义、符号引用
+- **代码模板** - 丰富的代码片段，快速开发
+- **语法高亮** - Pascal 语法高亮，支持条件编译
+- **代码格式化** - 集成 [jcf cli](https://github.com/coolchyni/jcf-cli) 格式化工具
+- **快速修复** - 智能建议和自动修正
+- **重构工具** - 符号重命名和代码操作
+
+### 详细功能说明
+
+#### 项目与构建管理
+- **Lazarus LPI 项目支持**: 自动检测并解析 `.lpi` 项目文件，提取所有构建模式，支持多模式构建管理
+- **高级任务系统**: 
+  - 自定义构建任务，支持从其他任务继承
+  - 支持自定义构建选项（目标平台/CPU、输出目录、编译参数等）
+  - 跨平台和多架构编译（Linux/Windows/macOS，x86_64/i386 等）
+  - 构建前/后事件支持，便于自动化和集成
+  - FreePascal 和 Lazarus 项目混合管理，自动识别最佳体验
+
+#### 代码智能与导航
+- **智能代码补全**: 支持函数、过程、类、变量、关键字的智能补全
  
- 	![](images/doc/code-snippets.gif)
+	![](images/doc/code-snippets.gif)
  
-- 代码快速导航
-	- 使用 `ctrl+up`,`ctrl+down` 在函数声明和函数体之间快速跳转.
-	- 快速访问类和函数定义
+- **代码导航**: 
+  - 使用 `Ctrl+Up`、`Ctrl+Down` 在函数声明和函数体之间快速跳转
+  - 类和函数引用，支持文档大纲
 	
 	![](images/doc/documentsymbol.gif) 
-	
-- 语法高亮显示
-	- 源代码高亮 
-	- 能根据编译条件,将`{$IFDEF} {ELSE} {$ENDIF}`之间的无效代码半透明. 
-- 代码格式化 
-	
-	- 使用[jcf cli](https://github.com/coolchyni/jcf-cli)格式化源代码
-	- 使用 `jcfsettings.cfg` 作为配置文件。如果你已经安装了lazarus,本插件将自动使用其配置文件. 
+
+#### 代码质量与格式化
+- **语法高亮**: 
+  - 高级 Pascal 语法高亮显示
+  - 根据编译条件识别 `{$IFDEF} {$ELSE} {$ENDIF}` 等条件编译
+- **代码格式化**: 
 	
 	![](images/doc/format.gif) 
 	
-- 快速修复
+	- 使用集成的 jcf cli 格式化源代码
+	- 使用 `jcfsettings.cfg` 作为配置文件，如果安装了 Lazarus 将自动使用其配置
+
+#### 开发效率工具
+- **快速修复**: 针对常见问题的智能建议
 	- 快速修复警告: `(5025) Local variable "xxx" not used`
 	
 	![](images/doc/quickfix.gif) 
 
-- 重命名函数，类，或变量名
-	- 重命名将会自动更新其相关引用. 
-- 代码自动完成 
-	- 使用 `ctrl+shift+c` 自动实现函数体 .
-- 源代码操作
-	- 支持删除无用的单元声明
+- **重构工具**:
+	- 自动重命名符号（函数、类、变量及其相关引用）
+	- 使用 `Ctrl+Shift+C` 自动实现函数体
+	- 删除无用的单元声明，代码清理
+- **代码模板**: 丰富的代码片段，包括 class、if-else、begin-end 等模板
 
 ## Pascal Language Server 
 

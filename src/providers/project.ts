@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { basename, normalize } from 'path';
-import { CompileOption, TaskInfo } from '../languageServer/options';
-import { openStdin } from 'process';
+import { CompileOption } from '../languageServer/options';
 import { FpcTaskDefinition, FpcTaskProvider, taskProvider } from './task';
-import { Command } from 'vscode-languageserver-types';
-//import { visit, JSONVisitor } from "jsonc-parser";
-import { pathExists } from 'fs-extra';
-import { Event } from 'vscode-languageclient';
 import { clearTimeout } from 'timers';
-import { TIMEOUT } from 'dns';
+import { LazarusProjectParser, LazarusProject } from './lazarus';
+import { IProjectIntf, IProjectTask } from './projectIntf';
+import { FpcTask, FpcTaskProject } from './fpcTaskProject';
+import { FpcItem } from './fpcItem';
+import { ProjectType } from './projectType';
+import { LazarusBuildModeTask } from './lazarusBuildModeTask';
+import { Message } from 'vscode-languageclient';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
@@ -18,24 +18,27 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	readonly onDidChangeTreeData: vscode.Event<FpcItem | undefined | void> = this._onDidChangeTreeData.event;
 	private watch!: vscode.FileSystemWatcher;
 	private watchlpr!: vscode.FileSystemWatcher;
-	public defaultFtpItem?: FpcItem = undefined;
-	private config!:vscode.WorkspaceConfiguration;
-	private defaultCompileOption?:CompileOption=undefined;
-	private timeout?:NodeJS.Timeout=undefined;
+	private watchlpi!: vscode.FileSystemWatcher; // Monitor Lazarus project files
+	private watchSource!: vscode.FileSystemWatcher; // Monitor source file changes
+	public defaultFpcItem?: FpcItem = undefined;
+	private config!: vscode.WorkspaceConfiguration;
+	private defaultCompileOption?: CompileOption = undefined;
+	private timeout?: NodeJS.Timeout = undefined;
+	private _hasSourceFileChanged: boolean = false; // Flag indicating whether source files have changed
+	private _projectInfosMap: Map<string, IProjectIntf> = new Map(); // Store parsed project interfaces
 	constructor(private workspaceRoot: string, context: vscode.ExtensionContext) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
-		subscriptions.push(vscode.commands.registerCommand(name + ".open", async (item: FpcItem) => { await this.open(item); }, this));
 
-		this.watch = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot,".vscode","tasks.json"), false);
+		this.watch = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot, ".vscode", "tasks.json"), false);
 		this.watch.onDidChange(async (url) => {
 			taskProvider.clean();
-			if(this.timeout!=undefined){
+			if (this.timeout != undefined) {
 				clearTimeout(this.timeout);
 			}
-			this.timeout=setTimeout(()=>{
+			this.timeout = setTimeout(() => {
 				this.checkDefaultAndRefresh();
-			},1000);
+			}, 1000);
 		});
 		this.watch.onDidDelete(() => {
 			this.refresh();
@@ -49,11 +52,306 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			this.refresh();
 		});
 
+		// Monitor Lazarus project files
+		this.watchlpi = vscode.workspace.createFileSystemWatcher("**/*.lpi", false, false, false);
+		this.watchlpi.onDidCreate(() => {
+			this._projectInfosMap.clear(); // Clear cache when new project is created
+			this.refresh();
+		});
+		this.watchlpi.onDidDelete(() => {
+			this._projectInfosMap.clear(); // Clear cache when project is deleted
+			this.refresh();
+		});
+		this.watchlpi.onDidChange(() => {
+			this._projectInfosMap.clear(); // Clear cache when project is modified
+			this.refresh();
+		});
+
+		// Monitor all Pascal source file changes
+		this.watchSource = vscode.workspace.createFileSystemWatcher("**/*.{pas,pp,lpr,inc,p,dpr,dpk,lfm}", false, false, false);
+		this.watchSource.onDidChange(() => {
+			this._hasSourceFileChanged = true;
+		});
+		this.watchSource.onDidCreate(() => {
+			this._hasSourceFileChanged = true;
+		});
+		this.watchSource.onDidDelete(() => {
+			this._hasSourceFileChanged = true;
+		});
+
 	}
 
+	/**
+	 * Get cached project info for a LPI file
+	 * @param lpiPath Path to the LPI file
+	 * @returns Cached project interface or undefined if not cached
+	 */
+	private getCachedProjectInfos(lpiPath: string): IProjectIntf | undefined {
+		return this._projectInfosMap.get(lpiPath);
+	}
+
+	/**
+	 * Parse and cache project info for a LPI file
+	 * @param lpiPath Path to the LPI file
+	 * @returns Parsed project interface
+	 */
+	private parseAndCacheProjectInfos(lpiPath: string): IProjectIntf {
+		try {
+			const projectIntf = LazarusProjectParser.parseLpiFile(lpiPath);
+			if (projectIntf) {
+				this._projectInfosMap.set(lpiPath, projectIntf);
+				return projectIntf;
+			}
+		} catch (error) {
+			console.error(`Error parsing LPI file ${lpiPath}:`, error);
+		}
+		// Create a default project info if parsing fails
+		const defaultProjectInfo = LazarusProjectParser.createDefaultProjectInfo(lpiPath);
+		this._projectInfosMap.set(lpiPath, defaultProjectInfo);
+		return defaultProjectInfo;
+	}
+
+	/**
+	 * Get project info for a LPI file (cached or parsed)
+	 * @param lpiPath Path to the LPI file
+	 * @returns Project interface
+	 */
+	public getProjectInfos(lpiPath: string): IProjectIntf {
+		// Check cache first
+		let projectIntf = this.getCachedProjectInfos(lpiPath);
+		if (!projectIntf) {
+			// Parse and cache if not found
+			projectIntf = this.parseAndCacheProjectInfos(lpiPath);
+		}
+		return projectIntf;
+	}
+
+	/**
+	 * Check if source files have changed
+	 */
+	public hasSourceFileChanged(): boolean {
+		return this._hasSourceFileChanged;
+	}
+
+	/**
+	 * Reset the source file change flag
+	 */
+	public resetSourceFileChanged(): void {
+		this._hasSourceFileChanged = false;
+	}
+
+	/**
+	 * Ensure we have a default FPC project
+	 */
+	public async ensureDefaultFpcItem(): Promise<FpcItem | undefined> {
+		return this.defaultFpcItem;
+	}
+
+	/**
+	 * Collect FPC projects from tasks.json
+	 * @param itemMaps Project mapping
+	 */
+	private collectFpcTaskProjects(itemMaps: Map<string, FpcItem>): void {
+		this.config?.tasks?.forEach((e: any) => {
+			if (e.type === 'fpc') {
+				if (!itemMaps.has(e.file)) {
+					// Create FpcTaskProject as IProjectIntf
+					const projectIntf = new FpcTaskProject(
+						path.basename(e.file),
+						e.file,
+						e.group?.isDefault || false,
+						e
+					);
+
+					// Create FpcItem and add to mapping
+					itemMaps.set(
+						e.file,
+						new FpcItem(
+							0,
+							path.basename(e.file),
+							vscode.TreeItemCollapsibleState.Expanded,
+							e.file,
+							true,
+							e.group?.isDefault || false,
+							ProjectType.FPC,
+							projectIntf
+						)
+					);
+				} else {
+					// If a project with the same file already exists, add task to existing project
+					const existingItem = itemMaps.get(e.file);
+					if (existingItem && existingItem.project) {
+						// Add this task to the existing project
+						const projectIntf = existingItem.project as FpcTaskProject;
+				   let task=new FpcTask(e.label, e.group?.isDefault || false, projectIntf, e);
+				   // Ensure isInLpi property for IProjectTask compatibility
+				   (task as any).isInLpi = false;
+				   projectIntf.tasks.push(task);
+						
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * Collect projects from workspace files
+	 * @param workspaceFolder Workspace folder
+	 * @param itemMaps Project mapping
+	 */
+	private collectProjectsFromWorkspace(workspaceFolder: vscode.WorkspaceFolder, itemMaps: Map<string, FpcItem>): void {
+		try {
+			const files = fs.readdirSync(workspaceFolder.uri.fsPath);
+
+			for (const file of files) {
+				// Handle .lpr and .dpr files (FPC projects)
+				if (file.toLowerCase().endsWith('.lpr') || file.toLowerCase().endsWith('.dpr')) {
+					this.collectFpcProject(file, itemMaps, workspaceFolder);
+				}
+				// Handle .lpi files (Lazarus projects)
+				else if (file.toLowerCase().endsWith('.lpi')) {
+					this.collectLazarusProject(file, itemMaps, workspaceFolder);
+				}
+			}
+		} catch (error) {
+			console.error(`Error collecting projects from workspace ${workspaceFolder.name}:`, error);
+		}
+	}
+
+	/**
+	 * Collect FPC project
+	 * @param file File name
+	 * @param itemMaps Project mapping
+	 * @param workspaceFolder Workspace folder
+	 */
+	private collectFpcProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder): void {
+		try {
+			// If project already in mapping, mark as existing and return
+			if (itemMaps.has(file)) {
+				itemMaps.get(file)!.fileexist = true;
+				return;
+			}
+
+			// Create FpcTaskProject as IProjectIntf
+			const projectIntf = new FpcTaskProject(
+				file,
+				file,
+				false, // 初始不设为默认
+				null   // 没有任务定义
+			);
+
+			// Create FpcItem and add to mapping
+			itemMaps.set(
+				file,
+				new FpcItem(
+					0,
+					file,
+					vscode.TreeItemCollapsibleState.Expanded,
+					file,
+					true,
+					false,
+					ProjectType.FPC,
+					projectIntf
+				)
+			);
+		} catch (error) {
+			console.error(`Error collecting FPC project ${file}:`, error);
+			vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
+		}
+	}
+
+	/**
+	 * Collect Lazarus project
+	 * @param file File name
+	 * @param itemMaps Project mapping
+	 * @param workspaceFolder Workspace folder
+	 */
+	private collectLazarusProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder): void {
+		try {
+			const lpiPath = path.join(workspaceFolder.uri.fsPath, file);
+			const projectIntf = this.getProjectInfos(lpiPath);
+
+			if (projectIntf) {
+			// Check if project is marked as default
+				const hasDefaultTask = projectIntf.tasks && projectIntf.tasks.some(task => task.isDefault);
+
+			// Create project root node
+				const rootItem = new FpcItem(
+					0,
+					file,
+					vscode.TreeItemCollapsibleState.Expanded,
+					file,
+					true,
+					hasDefaultTask || false, // 根节点默认状态基于是否有默认任务
+					ProjectType.Lazarus,
+					projectIntf
+				);
+
+			// Add project to mapping
+				itemMaps.set(file, rootItem);
+			}
+		} catch (error) {
+			console.error(`Error collecting Lazarus project ${file}:`, error);
+			vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
+		}
+	}
+
+	/**
+	 * Apply default project logic
+	 * @param itemMaps Project mapping
+	 */
+	private applyDefaultProjectLogic(itemMaps: Map<string, FpcItem>): void {
+		if (itemMaps.size < 1) {
+			return;
+		}
+
+		let defaultTask: IProjectTask | undefined;
+
+		// 1. Find default task in FPC projects
+		for (const item of itemMaps.values()) {
+			if (item.project?.tasks) {
+				for (const task of item.project.tasks) {
+					if (task.isDefault) {
+						defaultTask = task;
+						break;
+					}
+				}
+				if (defaultTask) break;
+			}
+		}
+
+		// 2. If still not found, use the first task as default
+		if (!defaultTask) {
+			for (const item of itemMaps.values()) {
+				if (item.project?.tasks && item.project.tasks.length > 0) {
+					defaultTask = item.project.tasks[0];
+					break;
+				}
+			}
+		}
+
+		// Apply default status
+		if (defaultTask) {
+			// Clear default status for all projects
+			for (const item of itemMaps.values()) {
+				if (item.project?.tasks) {
+					for (const task of item.project.tasks) {
+						task.isDefault = false;
+					}
+				}
+			}
+
+			// Set default project and task
+			defaultTask.isDefault = true;
+			
+		}
+	}
 
 	dispose() {
-		throw new Error("Method not implemented.");
+		this.watch?.dispose();
+		this.watchlpr?.dispose();
+		this.watchlpi?.dispose();
+		this.watchSource?.dispose();
 	}
 
 
@@ -62,290 +360,141 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		this._onDidChangeTreeData.fire();
 	}
 
-	async checkDefaultAndRefresh():Promise<void>{
-		let oldCompileOption=this.defaultCompileOption;
-		if(oldCompileOption==undefined){
+	async checkDefaultAndRefresh(): Promise<void> {
+		let oldCompileOption = this.defaultCompileOption;
+		if (oldCompileOption == undefined) {
 			taskProvider.refresh();
 			this.refresh();
 			return;
 		}
 
 		//default task setting changed 
-		let newCompileOption=await this.GetDefaultTaskOption();
-		if(oldCompileOption.toOptionString()!=newCompileOption.toOptionString()){
+		let newCompileOption = await this.GetDefaultTaskOption();
+		if (oldCompileOption.toOptionString() != newCompileOption.toOptionString()) {
 			taskProvider.refresh();
 		}
 		this.refresh();
-
-		
-
 	}
+
 	getTreeItem(element: FpcItem): vscode.TreeItem {
 		return element;
 	}
 
 	getChildren(element?: FpcItem | undefined): vscode.ProviderResult<FpcItem[]> {
 
-
 		if (element) {
-			this.defaultFtpItem=undefined;
+		// Handle child nodes (project build configurations)
 			let items: FpcItem[] = [];
-			
-			element.tasks?.forEach((task) => {
-				let item = new FpcItem(
-					1,
-					task.label,
-					vscode.TreeItemCollapsibleState.None,
-					element.file,
-					element.fileexist,
-					task.group?.isDefault,
-					[task]
-				);
-				items.push(item);
-				if (item.isDefault) {
-					this.defaultFtpItem = item;
+
+			if (element.project && element.project.tasks) {
+				// Directly use already stored tasks
+				for (const task of element.project.tasks) {
+					// Create tree item
+					let item = new FpcItem(
+						1,
+						task.label,
+						vscode.TreeItemCollapsibleState.None,
+						element.file,
+						element.fileexist,
+						task.isDefault,
+						element.projectType,
+						task
+					);
+					items.push(item);
+
+					// If default task, update global default project
+					if (item.isDefault) {
+						this.defaultFpcItem = item;
+					}
 				}
-			});
-			if(!this.defaultFtpItem && items.length>0){
-				this.defaultFtpItem=items[0];
-				this.defaultFtpItem.description='default';
-				this.defaultFtpItem.isDefault=true;
 			}
+
 			return Promise.resolve(items);
 
 		} else {
-			//root node 
+		// Handle root node
 
+		// Create a mapping to store all projects
 			var itemMaps: Map<string, FpcItem> = new Map();
+
+		// 1. Collect all project info
+
+		// 1.1 Collect FPC projects from tasks.json
 			this.config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-			//create info for pass tasks as pointer
-			//var info =new TaskInfo();
-			//info.tasks=config.tasks;
 
+		// Handle FPC tasks in tasks.json
+			this.collectFpcTaskProjects(itemMaps);
 
-			this.config?.tasks?.forEach((e: any) => {
-				if (e.type === 'fpc') {
-					if (!itemMaps.has(e.file)) {
-						itemMaps.set(
-							e.file,
-							new FpcItem(
-								0,
-								path.basename(e.file),
-								vscode.TreeItemCollapsibleState.Expanded,
-								e.file,
-								true,
-								e.group?.isDefault,
-								[e]
-							)
-						);
-					} else {
-						itemMaps.get(e.file)?.tasks?.push(e);
-					}
+		// 1.2 Collect projects from workspace files
+			if (vscode.workspace.workspaceFolders) {
+				for (const workspaceFolder of vscode.workspace.workspaceFolders) {
+					this.collectProjectsFromWorkspace(workspaceFolder, itemMaps);
 				}
-
-			});
-			let items: FpcItem[] = [];
-
-
-			vscode.workspace.workspaceFolders!.forEach(item => {
-				let files = fs.readdirSync(item.uri.fsPath);
-				for (let index = 0; index < files.length; index++) {
-
-					let file = files[index];
-
-					if (file.toLowerCase().endsWith('.lpr') || file.toLowerCase().endsWith('.dpr')) {
-						try {
-							if (itemMaps.has(file)) {
-								itemMaps.get(file)!.fileexist = true;
-								continue;
-							}
-
-							itemMaps.set(
-								file,
-								new FpcItem(
-									0,
-									file,
-									vscode.TreeItemCollapsibleState.Expanded,
-									file,
-									true,
-									false
-
-								)
-							);
-
-						} catch (error) {
-							vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
-						}
-
-
-					}
-				}
-			});
-
-			for (const e of itemMaps.values()) {
-				items.push(e);
 			}
 
+		// Apply default project logic
+			this.applyDefaultProjectLogic(itemMaps);
 
-			//});  
-			// if(info.ischanged){
-			// 	config.update("tasks",info.tasks,vscode.ConfigurationTarget.WorkspaceFolder);
-			// }
+			let items: FpcItem[] = [];
+
+		// Add all projects in mapping to project list
+			for (const item of itemMaps.values()) {
+				items.push(item);
+			}
 
 			return Promise.resolve(items);
 		}
-
-		return Promise.resolve([]);
-
 	}
-	async GetDefaultTaskOption(): Promise<CompileOption>  {
-		
-		//refresh tasks
-		await vscode.tasks.fetchTasks({type:'fpc'});
 
-		let cfg=vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-		let opt: CompileOption|undefined=undefined;
-		let is_first=true;
+	async GetDefaultTaskOption(): Promise<CompileOption> {
+		// Check if we have a default FPC item with project interface
+		if (this.defaultFpcItem?.project && this.defaultFpcItem.project.tasks && this.defaultFpcItem.project.tasks.length > 0) {
+			// Use the first task's compile options
+			const opt = this.defaultFpcItem.project.tasks[0].getCompileOption(this.workspaceRoot);
+			this.defaultCompileOption = opt;
+			return opt;
+		}
+
+		//refresh tasks
+		await vscode.tasks.fetchTasks({ type: 'fpc' });
+
+		let cfg = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+		let opt: CompileOption | undefined = undefined;
+		let is_first = true;
 		if (cfg?.tasks != undefined) {
 			for (const e of cfg?.tasks) {
-				if (e.type === 'fpc') {		
+				if (e.type === 'fpc') {
 					if (e.group?.isDefault) {
-						let def=taskProvider.GetTaskDefinition(e.label);
-						
-						opt = new CompileOption(def,this.workspaceRoot);
-						this.defaultCompileOption=opt;
+						let def = taskProvider.GetTaskDefinition(e.label);
+						// Create a FpcTaskProject to get compile options
+						const projectIntf = new FpcTaskProject(e.label, e.file, true, def);
+						// Use the first task's compile options
+						if (projectIntf.tasks && projectIntf.tasks.length > 0) {
+							opt = projectIntf.tasks[0].getCompileOption(this.workspaceRoot);
+						} else {
+							opt = new CompileOption(def, this.workspaceRoot);
+						}
+						this.defaultCompileOption = opt;
 						return opt;
 					}
-					if(is_first){
-						is_first=false;
-						let def=taskProvider.GetTaskDefinition(e.label);					
-						opt = new CompileOption(def,this.workspaceRoot);
+					if (is_first) {
+						is_first = false;
+						let def = taskProvider.GetTaskDefinition(e.label);
+						// Create a FpcTaskProject to get compile options
+						const projectIntf = new FpcTaskProject(e.label, e.file, false, def);
+						if (projectIntf.tasks.length > 0) {
+							opt = projectIntf.tasks[0].getCompileOption(this.workspaceRoot);
+						} else {
+							opt = new CompileOption(def, this.workspaceRoot);
+						}
 					}
-
 				}
 			}
 		}
-		if(!opt){
-			opt=new CompileOption();
+		if (!opt) {
+			opt = new CompileOption();
 		}
-		this.defaultCompileOption=opt;
+		this.defaultCompileOption = opt;
 		return opt;
 	}
-	private findJsonDocumentPosition(documentText: string, taskItem: FpcItem) {
-		// const me = this;
-		// let inScripts = false;
-		// let inTasks = false;
-		// let inTaskLabel: any;
-		// let scriptOffset = 0;
-
-
-		// const visitor: JSONVisitor =
-		// {
-		// 	onError: () => {
-		// 		return scriptOffset;
-		// 	},
-		// 	onObjectEnd: () => {
-		// 		if (inScripts) {
-		// 			inScripts = false;
-		// 		}
-		// 	},
-		// 	onLiteralValue: (value: any, offset: number, _length: number) => {
-		// 		if (inTaskLabel) {
-		// 			if (typeof value === "string") {
-		// 				if (inTaskLabel === "label" || inTaskLabel === "script") {
-
-		// 					if (taskItem.label === value) {
-		// 						scriptOffset = offset;
-		// 					}
-		// 				}
-		// 			}
-		// 			inTaskLabel = undefined;
-		// 		}
-		// 	},
-		// 	onObjectProperty: (property: string, offset: number, _length: number) => {
-		// 		if (property === "tasks") {
-		// 			inTasks = true;
-		// 			if (!inTaskLabel) { // select the script section
-		// 				scriptOffset = offset;
-		// 			}
-		// 		}
-		// 		else if ((property === "label" || property === "script") && inTasks && !inTaskLabel) {
-		// 			inTaskLabel = "label";
-		// 			if (!inTaskLabel) { // select the script section
-		// 				scriptOffset = offset;
-		// 			}
-		// 		}
-		// 		else { // nested object which is invalid, ignore the script
-		// 			inTaskLabel = undefined;
-		// 		}
-		// 	}
-		// };
-
-		// visit(documentText, visitor);
-
-		// //log.methodDone("find json document position", 3, "   ", false, [["position", scriptOffset]]);
-		// return scriptOffset;
-		return documentText.indexOf('"label": "'+taskItem.label+'"');
-	}
-	private async open(selection: FpcItem) {
-
-		let taskfile = vscode.Uri.file(path.join(this.workspaceRoot, '.vscode', 'tasks.json'))
-
-		fs.existsSync(taskfile.fsPath)
-		{
-			const document: vscode.TextDocument = await vscode.workspace.openTextDocument(taskfile);
-			const offset = this.findJsonDocumentPosition(document.getText(), selection);
-			const position = document.positionAt(offset);
-			await vscode.window.showTextDocument(document, { selection: new vscode.Selection(position, position) });
-		}
-	}
-
-}
-
-export class FpcItem extends vscode.TreeItem {
-
-
-	constructor(
-		public readonly level: number,
-		public readonly label: string,
-		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
-		public readonly file: string,
-		public fileexist: boolean,
-		public isDefault: boolean,
-		public tasks?: any[]
-	) {
-		super(label, collapsibleState);
-		if (level === 0) {
-			this.contextValue = 'fpcproject';
-		} else {
-			this.contextValue = 'fpcbuild';
-		}
-		this.tooltip = `${basename(this.label)} `;
-		if (this.level > 0) {
-			this.description = this.isDefault ? 'default' : '';
-
-			const command = {
-				command: "FpcProjectExplorer.open", // commandId is a string that contains the registered id ('myExtension.debugMessage')
-				title: '',
-				arguments: [this]
-			};
-			this.command = command;
-		}
-		
-		this.iconPath=this.level? new vscode.ThemeIcon('wrench'):path.join(__filename, '..','..',  'images','pascal-project.png');
-
-		//https://code.visualstudio.com/api/references/icons-in-labels
-
-		//this.command!.command= "workbench.action.tasks.configureTaskRunner"; 
-		//this.command!.arguments?.push(this.id);
-
-	}
-
-
-	// iconPath = {
-	// 	light: this.level?'$(gripper)':path.join(__filename, '..','..',  'images', this.level ? 'build.png' : 'pascal-project.png'),
-	// 	dark: path.join(__filename, '..','..',  'images', this.label ? 'build.png' : 'pascal-project.png')
-	// };
-
-
 }

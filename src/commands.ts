@@ -1,19 +1,35 @@
 import * as vscode from 'vscode';
-import { FpcItem } from './providers/project';
+import { FpcItem } from './providers/fpcItem';
+import { ProjectType } from './providers/projectType';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
 import { BuildMode, FpcTask, FpcTaskDefinition, FpcTaskProvider, taskProvider } from './providers/task';
 import { CompileOption } from './languageServer/options';
 import { configuration } from './common/configuration'
-import { type } from 'os';
 import { client } from './extension';
 import { TextEditor, TextEditorEdit } from 'vscode';
-
+import { IProjectTask } from './providers/projectIntf';
 
 export class FpcCommandManager {
+    // Static variable for storing extension context
+    private static _context: vscode.ExtensionContext;
+
     constructor(private workspaceRoot: string) {
 
+    }
+
+    // Set extension context
+    public static setContext(context: vscode.ExtensionContext): void {
+        FpcCommandManager._context = context;
+    }
+
+    // Getter for context
+    public static get context(): vscode.ExtensionContext {
+        if (!FpcCommandManager._context) {
+            throw new Error('Extension context not initialized');
+        }
+        return FpcCommandManager._context;
     }
     registerAll(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.build', this.ProjectBuild));
@@ -23,22 +39,31 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
-        
-        context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete',this.CodeComplete));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.openWithLazarus', this.openWithLazarus));
+
+        context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
     }
+
     ProjectAdd = async (node: FpcItem) => {
         if (node.level === 0) {
+            // If it is a Lazarus project, do not allow adding new build configurations, as configurations come from the .lpi file
+            if (node.projectType === ProjectType.Lazarus) {
+                vscode.window.showInformationMessage('The build configurations of Lazarus projects are managed by the .lpi file and do not need to be added manually.');
+                return;
+            }
+
             let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-            let inp = await vscode.window.showQuickPick(['debug', 'release', 'other...'], { canPickMany: false });
+
+            let inp = await vscode.window.showQuickPick(['debug', 'release', 'Other ...'], { canPickMany: false });
             if (!inp) {
                 return;
             }
             let label: string | undefined;
             let customOption = '-dDEBUG';
-            let isDebug=false;
+            let isDebug = false;
             switch (inp) {
                 case 'debug':
-                    isDebug=true;
+                    isDebug = true;
                     label = 'debug';
                     break;
                 case 'release':
@@ -66,10 +91,10 @@ export class FpcCommandManager {
                     ]
                 }
             };
-            if(isDebug){
-                v.buildOption.customOptions=[customOption,'-gw2'];
+            if (isDebug) {
+                v.buildOption.customOptions = [customOption, '-gw2'];
             }
-            
+
             let tasks = config.tasks;
             if (tasks) {
                 tasks.push(v);
@@ -82,71 +107,135 @@ export class FpcCommandManager {
                 vscode.ConfigurationTarget.WorkspaceFolder
             );
         }
-
     };
+
     ProjectBuild = async (node: FpcItem) => {
+        // Only child nodes (build configurations) can perform the Build operation
         if (node.level === 0) {
-
-        } else {
-            vscode.tasks.fetchTasks({ type: 'fpc' }).then((e) => {
-                e.forEach((task) => {
-                    //vscode.window.showInformationMessage(task.name);
-                    if (task.name === node.label) {
-                        let newtask=taskProvider.taskMap.get(task.name);
-                        if(newtask){
-                            (newtask as FpcTask).BuildMode=BuildMode.normal;   
-                        }
-                        vscode.tasks.executeTask(task);
-
-                        return;
-                    }
-
-                });
-            });
-
+            // Root node (project level) does not perform any operation
+            return;
         }
 
+        // Get the project task from the node
+        const projectTask = node.projectTask;
+        if (!projectTask) {
+            vscode.window.showErrorMessage('Invalid project task');
+            return;
+        }
+
+        // Get the task from the project task
+        const task = projectTask.getTask();
+        
+        // Set to normal build mode
+        // let newtask = taskProvider.taskMap.get(task.name);
+        // if (newtask) {
+        //     (newtask as FpcTask).BuildMode = BuildMode.normal;
+        // }
+
+        // Execute the task
+        vscode.tasks.executeTask(task);
     };
 
     ProjectReBuild = async (node: FpcItem) => {
-
+        // Only child nodes (build configurations) can perform the ReBuild operation
         if (node.level === 0) {
-
-        } else {
-            await this.projectClean(node);
-            this.ProjectBuild(node);
-
-            // vscode.tasks.fetchTasks({ type: 'fpc' }).then((e) => {
-
-            //     for (const task of e) {
-            //         if (task.name === node.label) {
-            //             let newtask=taskProvider.taskMap.get(task.name);
-            //             if(newtask){
-            //                 (newtask as FpcTask).BuildMode=BuildMode.rebuild;   
-            //             }
-                        
-            //             vscode.tasks.executeTask(task).then((e)=>{
-            //                 console.log(e.task.name);
-            //             });
-
-            //             return;
-            //         }
-   
-            //     }
-            // });
-
+            // Root node (project level) does not perform any operation
+            return;
         }
 
+        // Get the project task from the node
+        const projectTask = node.projectTask;
+        if (!projectTask) {
+            vscode.window.showErrorMessage('Invalid project task');
+            return;
+        }
+
+        // Handle child nodes of Lazarus projects
+        if (node.projectType === ProjectType.Lazarus) {
+            // Get the task from the project task
+            const task = projectTask.getTask();
+            
+            // Get compile options for this task
+            const compileOption = projectTask.getCompileOption(this.workspaceRoot);
+            if (!compileOption) {
+                vscode.window.showErrorMessage('Failed to get compile options');
+                return;
+            }
+
+            // Ensure build options contain the force rebuild flag
+            if (compileOption.buildOption) {
+                compileOption.buildOption.forceRebuild = true;
+            }
+
+            // Set to rebuild mode
+            let newtask = taskProvider.taskMap.get(task.name);
+            if (newtask) {
+                (newtask as FpcTask).BuildMode = BuildMode.rebuild;
+            }
+
+            // Execute the task
+            vscode.tasks.executeTask(task);
+        } else {
+            // For child nodes of FPC projects, clean first then build
+            await this.projectClean(node);
+            this.ProjectBuild(node);
+        }
     };
+
     ProjectOpen = async (node?: FpcItem) => {
+        // If a node is provided and it is a Lazarus project, open the .lpi file
+        if (node && node.projectType === ProjectType.Lazarus) {
+            return;
+            // var lpiFile = path.join(this.workspaceRoot, node.file);
+            // if(!node.projectTask?.isInLpi){
+            //     lpiFile = path.join(this.workspaceRoot, node.file.replace(/\.lpi$/, '.lps'));
+            // }
+            // if (fs.existsSync(lpiFile)) {
+            //     const doc = await vscode.workspace.openTextDocument(lpiFile);
+            //     const text = doc.getText();
+            //     // 查找 <BuildModes> 区块（支持带属性的标签）
+            //     const buildModesMatch = text.match(/<BuildModes[^>]*>([\s\S]*?)<\/BuildModes>/i);
+            //     let offset = 0;
+            //     if (buildModesMatch) {
+            //         const buildModesContent = buildModesMatch[1];
+            //         const fullMatch = buildModesMatch[0];
+            //         const buildModesStart = (buildModesMatch.index || 0) + (fullMatch.length - buildModesContent.length - '</BuildModes>'.length);
+            //         // 尝试两种格式：<Item Name="..."> 和 <ItemX Name="...">
+            //         let itemMatch: RegExpMatchArray | null = null;
+                    
+            //         // 首先尝试 <Item Name="..."> 格式
+            //         const itemRegex1 = new RegExp(`<Item\\s+Name\\s*=\\s*["']${node.label}["']`, 'i');
+            //         itemMatch = buildModesContent.match(itemRegex1);
+                    
+            //         // 如果没找到，尝试 <ItemX Name="..."> 格式（如 <Item1>, <Item2> 等）
+            //         if (!itemMatch) {
+            //             const itemRegex2 = new RegExp(`<Item\\d*\\s+Name\\s*=\\s*["']${node.label}["']`, 'i');
+            //             itemMatch = buildModesContent.match(itemRegex2);
+            //         }
+                    
+            //         if (itemMatch && itemMatch.index !== undefined) {
+            //             offset = buildModesStart + itemMatch.index;
+            //         }
+            //     }
+            //     const position = doc.positionAt(offset);
+            //     await vscode.window.showTextDocument(doc, { selection: new vscode.Selection(position, position) });
+            //     return;
+            // }
+        }
 
-        let file = path.join(this.workspaceRoot, ".vscode", "tasks.json");
-        let doc = await vscode.workspace.openTextDocument(file);
-        let te = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-
+        // By default, open tasks.json
+        const file = path.join(this.workspaceRoot, ".vscode", "tasks.json");
+        if (fs.existsSync(file)) {
+            const doc = await vscode.workspace.openTextDocument(file);
+            const offset = doc.getText().indexOf('"label": "' + node?.label + '"');
+            const position = doc.positionAt(offset);
+            await vscode.window.showTextDocument(doc, { selection: new vscode.Selection(position, position) });
+        } else {
+            vscode.window.showErrorMessage("Task configuration file not found");
+        }
     };
-    ProjectNew = async () => {
 
+    ProjectNew = async () => {
         let s = `program main;
 {$mode objfpc}{$H+}
 uses
@@ -157,7 +246,6 @@ end.`;
 
         let file = path.join(this.workspaceRoot, "main.lpr");
 
-
         fs.writeFile(file, s, () => {
             let f = vscode.workspace.openTextDocument(file);
             f.then((doc) => {
@@ -166,9 +254,7 @@ end.`;
                         let pos = new vscode.Position(2, 4);
                         e.selection = new vscode.Selection(pos, pos);
                     });
-
             });
-
         });
 
         let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
@@ -200,20 +286,33 @@ end.`;
             tasks,
             vscode.ConfigurationTarget.WorkspaceFolder
         );
-
     };
+
     projectClean = async (node: FpcItem) => {
+        // Get the project task from the node
+        const projectTask = node.projectTask;
+        if (!projectTask) {
+            vscode.window.showErrorMessage('Invalid project task');
+            return;
+        }
 
-        let definition = taskProvider.GetTaskDefinition(node.label);
+        // Get compile options for this task
+        const compileOption = projectTask.getCompileOption(this.workspaceRoot);
+        if (!compileOption) {
+            vscode.window.showErrorMessage('Failed to get compile options');
+            return;
+        }
 
-        let dir = definition?.buildOption?.unitOutputDir;
+        let definition = compileOption.buildOption;
+        let dir = definition?.unitOutputDir;
+
         if (!dir) { return; }
-        if (!path.isAbsolute(dir)) {
 
+        if (!path.isAbsolute(dir)) {
             if (definition?.cwd) {
-                let cur_dir=definition.cwd;
-                if(cur_dir.startsWith('./') || cur_dir.startsWith('.\\')){
-                    cur_dir=path.join(this.workspaceRoot,definition.cwd);
+                let cur_dir = definition.cwd;
+                if (cur_dir.startsWith('./') || cur_dir.startsWith('.\\')) {
+                    cur_dir = path.join(this.workspaceRoot, definition.cwd);
                 }
                 dir = path.join(cur_dir, dir);
             } else {
@@ -221,70 +320,132 @@ end.`;
             }
         }
 
+        // If it is a Lazarus project, also check the compiled output in the project directory
+        if (node.projectType === ProjectType.Lazarus) {
+            const lpiPath = path.join(this.workspaceRoot, node.file);
+            const projectDir = path.dirname(lpiPath);
+
+            // Check if the project directory exists
+            if (fs.existsSync(projectDir)) {
+                // Clean up compiled output files in the project directory
+                this.cleanDirectory(projectDir);
+            }
+
+            // If there's an object path specified, clean that too
+            if (definition?.objectPath) {
+                let objPath = definition.objectPath;
+
+                // Apply variable substitution if needed
+                if (objPath.includes('$(')) {
+                    try {
+                        const { LazarusVariableSubstitution } = require('./providers/lazarusVariables');
+                        objPath = LazarusVariableSubstitution.substitute(objPath);
+                    } catch (error) {
+                        console.error('Error during variable substitution for object path:', error);
+                    }
+                }
+
+                // Resolve relative path
+                if (!path.isAbsolute(objPath)) {
+                    objPath = path.join(this.workspaceRoot, objPath);
+                }
+
+                // Clean the object path directory
+                if (fs.existsSync(objPath)) {
+                    this.cleanDirectory(objPath, definition.cleanExt);
+                }
+            }
+        }
+
         let cleanExt = definition?.cleanExt;
         if (fs.existsSync(dir)) {
-            try {
-                let exts = ['.o', '.ppu', '.lfm', '.a', '.or', '.res','.rsj','.obj'];
-                let isall = false;
-                if (cleanExt) {
-                    if ((<String>cleanExt).trim() == '*') {
-                        isall = true;
-                    }
-                    let tmps = (<String>cleanExt).split(',');
-                    for (const s of tmps) {
-                        exts.push(s);
-                    }
-                }
-                let files = fs.readdirSync(dir);
-                for (let index = 0; index < files.length; index++) {
-                    let file = files[index].toLowerCase();
-                    let ext = path.extname(file);
-
-                    if (isall || exts.includes(ext)) {
-                        try {
-                            fs2.removeSync(path.join(dir, file));
-                        } catch {
-
-                        }
-
-                    }
-                }
-
-            } catch {
-
-            }
+            this.cleanDirectory(dir, cleanExt);
         }
     };
 
-    projectSetDefault = async (node: FpcItem) => {
-        let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-        let tasks=config.tasks;
-        for (const task of tasks) {
-            if(task.label===node.label){
-                if(typeof(task.group)==='object'){
-                    task.group.isDefault=true;    
-                }else{
-                    task.group={kind:task.group,isDefault:true};
+    // Helper method: clean up compiled output files in a directory
+    private cleanDirectory(dir: string, cleanExt?: string) {
+        try {
+            let exts = ['.o', '.ppu', '.lfm', '.a', '.or', '.res', '.rsj', '.obj'];
+            let isall = false;
+
+            if (cleanExt) {
+                if ((<String>cleanExt).trim() == '*') {
+                    isall = true;
                 }
-                client.restart();
-            }else{
-                if(typeof(task.group)==='object'){
-                    task.group.isDefault=undefined;
+                let tmps = (<String>cleanExt).split(',');
+                for (const s of tmps) {
+                    exts.push(s);
                 }
             }
-           
 
+            let files = fs.readdirSync(dir);
+            for (let index = 0; index < files.length; index++) {
+                let file = files[index].toLowerCase();
+                let ext = path.extname(file);
+
+                if (isall || exts.includes(ext)) {
+                    try {
+                        fs2.removeSync(path.join(dir, file));
+                    } catch {
+                        // Ignore deletion failures
+                    }
+                }
+            }
+        } catch {
+            // Ignore directory handling failures
         }
-        config.update(
-            "tasks",
-            tasks,
-            vscode.ConfigurationTarget.WorkspaceFolder
-        );
     }
 
+    projectSetDefault = async (node: FpcItem) => {
+        // If this is a task node (level 1), use its project task to set as default
+        if (node.level === 1 && node.projectTask) {
+            node.projectTask.setAsDefault();
 
-    CodeComplete= async (textEditor: TextEditor, edit: TextEditorEdit) => {
-        client.doCodeComplete(textEditor);
-      
-    }
+            // Refresh the project explorer to update the UI
+            const { projectProvider } = require('./extension');
+            if (projectProvider) {
+                projectProvider.refresh();
+            }
+
+            // Restart the client to apply changes
+            client.restart();
+            return;
+        }
+    };
+
+    openWithLazarus = async (node: FpcItem) => {
+        // Only support Lazarus projects at level 0
+        if (node.level !== 0 || node.projectType !== ProjectType.Lazarus) {
+            vscode.window.showErrorMessage('This command is only available for Lazarus projects.');
+            return;
+        }
+
+        // Get the project file path
+        const projectFile = path.join(this.workspaceRoot, node.file);
+        if (!fs.existsSync(projectFile)) {
+            vscode.window.showErrorMessage(`Project file not found: ${projectFile}`);
+            return;
+        }
+
+        try {
+            // Use vscode.env.openExternal to open the file with the default associated application
+            // This simulates the file explorer's "Open with" behavior
+            const fileUri = vscode.Uri.file(projectFile);
+            await vscode.env.openExternal(fileUri);
+            
+            //vscode.window.showInformationMessage(`Opening ${path.basename(projectFile)} with default application...`);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open with default application: ${error}`);
+        }
+    };
+
+    CodeComplete = (textEditor: TextEditor, edit: TextEditorEdit) => {
+        client.sendRequest('textDocument/completion', {
+            textDocument: { uri: textEditor.document.uri.toString() },
+            position: textEditor.selection.active
+        }).then((result) => {
+            console.log(result);
+        });
+    };
 }

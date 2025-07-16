@@ -1,27 +1,29 @@
 ## [Unreleased]
-- Using lazarus project files 
+## [1.2.0] - 2025-07-23
+### add:
+- Using lazarus project files (.lpr, .lpi) for build tasks
 
 ## [1.1.9] - 2022-12-17
-## add:
+### add:
 -  optimize clean up and build
-## fixed:
+### fixed:
 -  can't rename symbol on version 1.1.8
 
 ## [1.1.8] - 2022-12-16
-## add:
+### add:
 -  add error handle for client to avoid crashing
 -  change maximumCompletions default to 50
 
 ## [1.1.6] - 2022-12-06
-## add:
+### add:
 -  add build events 
 
 ## [1.1.5] - 2022-11-23
-## fixed:
+### fixed:
 - can't start language server on linux 
 
 ## [1.1.4] - 2022-10-15
-## fixed:
+### fixed:
 - quick fix not worked 
 
 ## [1.1.3] - 2022-10-14
