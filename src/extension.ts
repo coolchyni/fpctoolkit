@@ -120,21 +120,65 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
             
             // Wait for task completion
             await new Promise<void>((resolve, reject) => {
-                const disposable = vscode.tasks.onDidEndTask((e) => {
-                    if (e.execution === execution) {
-                        disposable.dispose();
-                        // Reset source file change flag
+                let taskCompleted = false;
+                
+                // Listen for task process end to get exit code
+                const processDisposable = vscode.tasks.onDidEndTaskProcess(async (e) => {
+                    if (e.execution === execution && !taskCompleted) {
+                        taskCompleted = true;
+                        processDisposable.dispose();
+                        taskDisposable.dispose();
+                        
+                        // Check if task executed successfully
+                        if (e.exitCode === 0) {
+                            // Reset source file change flag only on successful compilation
+                            projectProvider.resetSourceFileChanged();
+                            logger.appendLine('Debug auto-compilation: Compilation completed successfully');
+                            resolve();
+                        } else {
+                            logger.appendLine(`Debug auto-compilation: Compilation failed with exit code ${e.exitCode}`);
+                            
+                            // Show user prompt asking whether to continue debugging despite compilation failure
+                            const choice = await vscode.window.showWarningMessage(
+                                `Compilation failed with exit code ${e.exitCode}. Do you want to continue debugging anyway?`,
+                                'Continue',
+                                'Cancel'
+                            );
+                            
+                            if (choice === 'Continue') {
+                                logger.appendLine('Debug auto-compilation: User chose to continue debugging despite compilation failure');
+                                resolve();
+                            } else {
+                                logger.appendLine('Debug auto-compilation: User cancelled debugging due to compilation failure');
+                                reject(new Error(`Compilation failed with exit code ${e.exitCode}`));
+                            }
+                        }
+                    }
+                });
+                
+                // Listen for task end as fallback (in case process end doesn't fire)
+                const taskDisposable = vscode.tasks.onDidEndTask((e) => {
+                    if (e.execution === execution && !taskCompleted) {
+                        taskCompleted = true;
+                        processDisposable.dispose();
+                        taskDisposable.dispose();
+                        
+                        // If we only get task end without process end, assume success
                         projectProvider.resetSourceFileChanged();
-                        logger.appendLine('Debug auto-compilation: Compilation completed');
+                        logger.appendLine('Debug auto-compilation: Compilation completed (exit code unknown)');
                         resolve();
                     }
                 });
                 
                 // Set timeout to avoid infinite waiting
                 setTimeout(() => {
-                    disposable.dispose();
-                    logger.appendLine('Debug auto-compilation: Compilation timeout');
-                    reject(new Error('Compilation timeout'));
+                    if (!taskCompleted) {
+                        taskCompleted = true;
+                        processDisposable.dispose();
+                        taskDisposable.dispose();
+                        logger.appendLine('Debug auto-compilation: Compilation timeout');
+                        reject(new Error('Compilation timeout'));
+                    }
                 }, 30000); // 30 second timeout
             });
             
@@ -146,7 +190,10 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
         const errorMsg = `Error occurred during auto-compilation: ${error}`;
         console.error(errorMsg);
         logger.appendLine(errorMsg);
-        vscode.window.showErrorMessage(errorMsg);
+        
+        // Don't show error message here, let the caller handle it
+        // Re-throw the error so resolveDebugConfiguration can catch it and cancel debugging
+        throw error;
     }
 }
 
@@ -160,10 +207,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	 // Register debug configuration provider to check and compile project before debugging starts
 	vscode.debug.registerDebugConfigurationProvider('*', {
-		resolveDebugConfiguration: async (folder, config, token) => {
-			// Check for file updates before debugging starts and auto-compile default project if needed
-			await checkAndBuildBeforeDebug();
+		resolveDebugConfiguration: (folder, config, token) => {
+			// Just return config, don't do compilation here to avoid task.json redirect
 			return config;
+		},
+		resolveDebugConfigurationWithSubstitutedVariables: async (folder, config, token) => {
+			try {
+				// Check for file updates before debugging starts and auto-compile default project if needed
+				await checkAndBuildBeforeDebug();
+				return config; // Return config to continue debugging
+			} catch (error) {
+				// If checkAndBuildBeforeDebug throws an error (user cancelled or compilation failed), 
+				// return undefined to cancel the debug session without opening task.json
+				logger.appendLine(`Debug session cancelled: ${error}`);
+				return undefined; // This will cancel the debug session without opening config
+			}
 		}
 	});
 
