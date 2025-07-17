@@ -1,18 +1,14 @@
 import * as vscode from 'vscode';
-import { FpcItem, FpcProjectProvider } from './providers/project';
+import { FpcItem, FpcProjectProvider, ProjectType } from './providers/project';
 import { diagCollection, FpcTaskProvider, taskProvider, FpcTask, BuildMode } from './providers/task';
 import { FpcCommandManager } from './commands';
 import * as util from './common/util';
 import {TLangClient} from './languageServer/client';
 import { configuration } from './common/configuration';
 import { JediFormatter } from './formatter';
-import { format } from 'path';
 import * as MyCodeAction from  './languageServer/codeaction';
-import * as fs from 'fs';
 import * as path from 'path';
-import { promisify } from 'util';
-
-const stat = promisify(fs.stat);
+import * as fs from 'fs';
 export let client:TLangClient;
 export let formatter:JediFormatter;
 export let logger:vscode.OutputChannel;
@@ -22,6 +18,13 @@ export let commandManager: FpcCommandManager;
 // Check file updates and auto-compile before debugging
 async function checkAndBuildBeforeDebug(): Promise<void> {
     try {
+        // 获取工作区根目录
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!workspaceRoot) {
+            logger.appendLine('Debug pre-check: No workspace folder found');
+            return;
+        }
+        
         // Check if auto-build feature is enabled
         const config = vscode.workspace.getConfiguration('fpctoolkit');
         const autoBuildEnabled = config.get<boolean>('debug.autoBuild', true);
@@ -44,32 +47,6 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
 
         logger.appendLine('Debug pre-check: Source file changes detected, compilation needed');
 
-        // Get default project compile options
-        const defaultCompileOption = await projectProvider.GetDefaultTaskOption();
-        if (!defaultCompileOption) {
-            logger.appendLine('Debug pre-check: Unable to get default compile options');
-            return;
-        }
-
-        // Wait for task provider initialization, maximum 5 seconds
-        let tasks: vscode.Task[] = [];
-        let retryCount = 0;
-        const maxRetries = 10; // Maximum 10 retries, 500ms each
-        
-        while (tasks.length === 0 && retryCount < maxRetries) {
-            tasks = await vscode.tasks.fetchTasks({ type: 'fpc' });
-            if (tasks.length === 0) {
-                logger.appendLine(`Debug pre-check: Waiting for FPC tasks to load... (${retryCount + 1}/${maxRetries})`);
-                await new Promise(resolve => setTimeout(resolve, 500));
-                retryCount++;
-            }
-        }
-
-        if (tasks.length === 0) {
-            logger.appendLine('Debug pre-check: No FPC tasks found, skipping auto-compilation');
-            return;
-        }
-
         // Get default project and execute compilation
         const defaultProject = await projectProvider.ensureDefaultFpcItem();
         
@@ -86,21 +63,118 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
             // Try to get default project again
             const retryDefaultProject = await projectProvider.ensureDefaultFpcItem();
             if (!retryDefaultProject) {
-                logger.appendLine('Debug pre-check: No default FPC project found');
+                logger.appendLine('Debug pre-check: No default project found');
                 return;
             }
         }
 
-        // Find default task
-        const defaultTaskName = (await projectProvider.ensureDefaultFpcItem())?.label;
-        if (!defaultTaskName) {
-            logger.appendLine('Debug pre-check: No default task name found');
-            return;
+        // Handle different project types
+        let defaultTask: vscode.Task | undefined;
+        
+        if (defaultProject?.projectType === ProjectType.Lazarus) {
+            // For Lazarus projects, create a temporary task from the project definition
+            logger.appendLine('Debug pre-check: Processing Lazarus project');
+            
+            if (defaultProject.tasks && defaultProject.tasks.length > 0) {
+                const taskDef = defaultProject.tasks[0];
+                
+                // 确保文件路径正确
+                if (!taskDef.file) {
+                    logger.appendLine('Debug pre-check: Invalid file path in Lazarus project task definition');
+                    return;
+                }
+                
+                // 确保文件存在
+                const filePath = path.isAbsolute(taskDef.file) 
+                    ? taskDef.file 
+                    : path.join(workspaceRoot, taskDef.file);
+                
+                if (!fs.existsSync(filePath)) {
+                    logger.appendLine(`Debug pre-check: File not found: ${filePath}`);
+                    // 尝试在项目目录中查找文件
+                    const lpiPath = path.join(workspaceRoot, defaultProject.file);
+                    const projectDir = path.dirname(lpiPath);
+                    const alternativePath = path.join(projectDir, path.basename(taskDef.file));
+                    
+                    if (fs.existsSync(alternativePath)) {
+                        // 使用找到的替代路径
+                        taskDef.file = path.relative(workspaceRoot, alternativePath);
+                        logger.appendLine(`Debug pre-check: Using alternative file path: ${taskDef.file}`);
+                    } else {
+                        logger.appendLine('Debug pre-check: Could not find main file for Lazarus project');
+                        return;
+                    }
+                }
+                
+                // 确保构建选项包含强制重新构建标志
+                if (!taskDef.buildOption) {
+                    taskDef.buildOption = {};
+                }
+                taskDef.buildOption.forceRebuild = true;
+                
+                // 创建临时FPC任务
+                const tempTask = taskProvider.getTask(
+                    defaultProject.label,
+                    taskDef.file,
+                    {
+                        type: 'fpc',
+                        file: taskDef.file,
+                        buildOption: taskDef.buildOption
+                    }
+                );
+                
+                defaultTask = tempTask;
+                logger.appendLine(`Debug pre-check: Created temporary task for Lazarus project: ${defaultProject.label}`);
+            } else {
+                logger.appendLine('Debug pre-check: No task definition found for Lazarus project');
+                return;
+            }
+        } else {
+            // For FPC projects, use the existing logic
+            logger.appendLine('Debug pre-check: Processing FPC project');
+            
+            // Get default project compile options
+            const defaultCompileOption = await projectProvider.GetDefaultTaskOption();
+            if (!defaultCompileOption) {
+                logger.appendLine('Debug pre-check: Unable to get default compile options');
+                return;
+            }
+
+            // Wait for task provider initialization, maximum 5 seconds
+            let tasks: vscode.Task[] = [];
+            let retryCount = 0;
+            const maxRetries = 10; // Maximum 10 retries, 500ms each
+            
+            while (tasks.length === 0 && retryCount < maxRetries) {
+                tasks = await vscode.tasks.fetchTasks({ type: 'fpc' });
+                if (tasks.length === 0) {
+                    logger.appendLine(`Debug pre-check: Waiting for FPC tasks to load... (${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    retryCount++;
+                }
+            }
+
+            if (tasks.length === 0) {
+                logger.appendLine('Debug pre-check: No FPC tasks found, skipping auto-compilation');
+                return;
+            }
+
+            // Find default task
+            const defaultTaskName = defaultProject?.label;
+            if (!defaultTaskName) {
+                logger.appendLine('Debug pre-check: No default task name found');
+                return;
+            }
+
+            defaultTask = tasks.find(task => task.name === defaultTaskName);
+            if (!defaultTask) {
+                logger.appendLine(`Debug pre-check: Task named "${defaultTaskName}" not found`);
+                return;
+            }
         }
 
-        const defaultTask = tasks.find(task => task.name === defaultTaskName);
         if (!defaultTask) {
-            logger.appendLine(`Debug pre-check: Task named "${defaultTaskName}" not found`);
+            logger.appendLine('Debug pre-check: No suitable task found for compilation');
             return;
         }
 
@@ -109,10 +183,16 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
         logger.appendLine('Debug auto-compilation: File changes detected, starting compilation');
         
         try {
-            // Set task build mode to normal mode
+            // Set task build mode based on project type
             let newtask = taskProvider.taskMap.get(defaultTask.name);
             if (newtask) {
-                (newtask as FpcTask).BuildMode = BuildMode.normal;   
+                // 对于 Lazarus 项目，使用 rebuild 模式确保完全重新构建
+                if (defaultProject?.projectType === ProjectType.Lazarus) {
+                    (newtask as FpcTask).BuildMode = BuildMode.rebuild;
+                    logger.appendLine('Debug auto-compilation: Using rebuild mode for Lazarus project');
+                } else {
+                    (newtask as FpcTask).BuildMode = BuildMode.normal;
+                }
             }
             
             // Execute task

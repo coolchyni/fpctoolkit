@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as vscode from 'vscode';
 
 export interface LazarusProjectInfo {
     title: string;
@@ -142,16 +143,33 @@ export class LazarusProjectParser {
             ? projectInfo.mainFile 
             : path.join(projectDir, projectInfo.mainFile);
 
+        // 确保文件路径是相对于工作区的路径
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+        const relativeMainFilePath = path.relative(workspaceRoot, mainFilePath);
+        
+        // 添加 -B 选项到自定义选项中，确保强制重新构建
+        const customOptions = [...(projectInfo.compilerOptions || [])];
+        if (!customOptions.includes('-B')) {
+            customOptions.push('-B');
+        }
+        
+        // 添加项目目录作为单元搜索路径
+        const unitPaths = [...(projectInfo.unitPaths || [])];
+        if (!unitPaths.includes(projectDir)) {
+            unitPaths.push(projectDir);
+        }
+        
         const taskDef = {
             label: `${projectInfo.title} (Lazarus)`,
-            file: path.relative(process.cwd(), mainFilePath),
+            file: relativeMainFilePath,
             type: 'fpc',
             buildOption: {
                 unitOutputDir: './lib',
-                customOptions: projectInfo.compilerOptions || [],
-                searchPath: projectInfo.unitPaths || [],
+                customOptions: customOptions,
+                searchPath: unitPaths,
                 syntaxMode: 'ObjFPC',
-                outputFile: projectInfo.targetFile
+                outputFile: projectInfo.targetFile,
+                forceRebuild: true  // 确保强制重新构建
             }
         };
 

@@ -27,24 +27,24 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	private watchlpi!: vscode.FileSystemWatcher; // 监控Lazarus项目文件
 	private watchSource!: vscode.FileSystemWatcher; // 监控源文件变化
 	public defaultFpcItem?: FpcItem = undefined;
-	private config!:vscode.WorkspaceConfiguration;
-	private defaultCompileOption?:CompileOption=undefined;
-	private timeout?:NodeJS.Timeout=undefined;
+	private config!: vscode.WorkspaceConfiguration;
+	private defaultCompileOption?: CompileOption = undefined;
+	private timeout?: NodeJS.Timeout = undefined;
 	private _hasSourceFileChanged: boolean = false; // 标志源文件是否有变化
 	constructor(private workspaceRoot: string, context: vscode.ExtensionContext) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
 		subscriptions.push(vscode.commands.registerCommand(name + ".open", async (item: FpcItem) => { await this.open(item); }, this));
 
-		this.watch = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot,".vscode","tasks.json"), false);
+		this.watch = vscode.workspace.createFileSystemWatcher(path.join(workspaceRoot, ".vscode", "tasks.json"), false);
 		this.watch.onDidChange(async (url) => {
 			taskProvider.clean();
-			if(this.timeout!=undefined){
+			if (this.timeout != undefined) {
 				clearTimeout(this.timeout);
 			}
-			this.timeout=setTimeout(()=>{
+			this.timeout = setTimeout(() => {
 				this.checkDefaultAndRefresh();
-			},1000);
+			}, 1000);
 		});
 		this.watch.onDidDelete(() => {
 			this.refresh();
@@ -114,45 +114,80 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	 */
 	private async computeDefaultFpcItem(): Promise<void> {
 		this.config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-		
-		if (!this.config?.tasks) {
-			return;
-		}
 
-		// 首先查找明确标记为默认的任务
-		for (const task of this.config.tasks) {
-			if (task.type === 'fpc' && task.group?.isDefault) {
-				this.defaultFpcItem = new FpcItem(
-					1,
-					task.label,
-					vscode.TreeItemCollapsibleState.None,
-					task.file,
-					true,
-					true,
-					[task],
-					ProjectType.FPC
-				);
-				this.defaultFpcItem.description = 'default';
-				return;
+		// 首先检查tasks.json中的FPC任务
+		if (this.config?.tasks) {
+			// 首先查找明确标记为默认的任务
+			for (const task of this.config.tasks) {
+				if (task.type === 'fpc' && task.group?.isDefault) {
+					this.defaultFpcItem = new FpcItem(
+						1,
+						task.label,
+						vscode.TreeItemCollapsibleState.None,
+						task.file,
+						true,
+						true,
+						[task],
+						ProjectType.FPC
+					);
+					this.defaultFpcItem.description = 'default';
+					return;
+				}
+			}
+
+			// 如果没有明确的默认任务，使用第一个FPC任务
+			for (const task of this.config.tasks) {
+				if (task.type === 'fpc') {
+					this.defaultFpcItem = new FpcItem(
+						1,
+						task.label,
+						vscode.TreeItemCollapsibleState.None,
+						task.file,
+						true,
+						false,
+						[task],
+						ProjectType.FPC
+					);
+					this.defaultFpcItem.description = 'default';
+					this.defaultFpcItem.isDefault = true;
+					return;
+				}
 			}
 		}
 
-		// 如果没有明确的默认任务，使用第一个FPC任务
-		for (const task of this.config.tasks) {
-			if (task.type === 'fpc') {
-				this.defaultFpcItem = new FpcItem(
-					1,
-					task.label,
-					vscode.TreeItemCollapsibleState.None,
-					task.file,
-					true,
-					false,
-					[task],
-					ProjectType.FPC
-				);
-				this.defaultFpcItem.description = 'default';
-				this.defaultFpcItem.isDefault = true;
-				return;
+		// 如果没有找到FPC任务，查找Lazarus项目文件作为默认项目
+		if (!this.defaultFpcItem && vscode.workspace.workspaceFolders) {
+			for (const workspaceFolder of vscode.workspace.workspaceFolders) {
+				const files = fs.readdirSync(workspaceFolder.uri.fsPath);
+
+				// 查找第一个.lpi文件作为默认项目
+				for (const file of files) {
+					if (file.toLowerCase().endsWith('.lpi')) {
+						try {
+							const lpiPath = path.join(workspaceFolder.uri.fsPath, file);
+							const projectInfo = LazarusProjectParser.parseLpiFile(lpiPath);
+
+							if (projectInfo) {
+								const taskDef = LazarusProjectParser.createTaskDefinitionFromLpi(projectInfo, lpiPath);
+
+								this.defaultFpcItem = new FpcItem(
+									1,
+									file,
+									vscode.TreeItemCollapsibleState.None,
+									file,
+									true,
+									true,
+									[taskDef],
+									ProjectType.Lazarus
+								);
+								this.defaultFpcItem.description = 'default';
+								return;
+							}
+						} catch (error) {
+							console.error(`Error processing Lazarus project ${file}:`, error);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -171,22 +206,22 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		this._onDidChangeTreeData.fire();
 	}
 
-	async checkDefaultAndRefresh():Promise<void>{
-		let oldCompileOption=this.defaultCompileOption;
-		if(oldCompileOption==undefined){
+	async checkDefaultAndRefresh(): Promise<void> {
+		let oldCompileOption = this.defaultCompileOption;
+		if (oldCompileOption == undefined) {
 			taskProvider.refresh();
 			this.refresh();
 			return;
 		}
 
 		//default task setting changed 
-		let newCompileOption=await this.GetDefaultTaskOption();
-		if(oldCompileOption.toOptionString()!=newCompileOption.toOptionString()){
+		let newCompileOption = await this.GetDefaultTaskOption();
+		if (oldCompileOption.toOptionString() != newCompileOption.toOptionString()) {
 			taskProvider.refresh();
 		}
 		this.refresh();
 
-		
+
 
 	}
 	getTreeItem(element: FpcItem): vscode.TreeItem {
@@ -199,7 +234,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			// 处理子项时，临时保存当前的默认项目，避免丢失
 			let tempDefaultItem = this.defaultFpcItem;
 			let items: FpcItem[] = [];
-			
+
 			element.tasks?.forEach((task) => {
 				let item = new FpcItem(
 					1,
@@ -216,19 +251,19 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					this.defaultFpcItem = item;
 				}
 			});
-			
+
 			// 如果在当前元素的任务中没有找到默认项目，但有任务存在
 			if (!this.defaultFpcItem && items.length > 0) {
 				this.defaultFpcItem = items[0];
 				this.defaultFpcItem.description = 'default';
 				this.defaultFpcItem.isDefault = true;
 			}
-			
+
 			// 如果仍然没有默认项目，恢复之前的默认项目
 			if (!this.defaultFpcItem && tempDefaultItem) {
 				this.defaultFpcItem = tempDefaultItem;
 			}
-			
+
 			return Promise.resolve(items);
 
 		} else {
@@ -301,10 +336,10 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 						try {
 							const lpiPath = path.join(item.uri.fsPath, file);
 							const projectInfo = LazarusProjectParser.parseLpiFile(lpiPath);
-							
+
 							if (projectInfo) {
 								const taskDef = LazarusProjectParser.createTaskDefinitionFromLpi(projectInfo, lpiPath);
-								
+
 								itemMaps.set(
 									file,
 									new FpcItem(
@@ -339,37 +374,37 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		return Promise.resolve([]);
 
 	}
-	async GetDefaultTaskOption(): Promise<CompileOption>  {
-		
-		//refresh tasks
-		await vscode.tasks.fetchTasks({type:'fpc'});
+	async GetDefaultTaskOption(): Promise<CompileOption> {
 
-		let cfg=vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-		let opt: CompileOption|undefined=undefined;
-		let is_first=true;
+		//refresh tasks
+		await vscode.tasks.fetchTasks({ type: 'fpc' });
+
+		let cfg = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+		let opt: CompileOption | undefined = undefined;
+		let is_first = true;
 		if (cfg?.tasks != undefined) {
 			for (const e of cfg?.tasks) {
-				if (e.type === 'fpc') {		
+				if (e.type === 'fpc') {
 					if (e.group?.isDefault) {
-						let def=taskProvider.GetTaskDefinition(e.label);
-						
-						opt = new CompileOption(def,this.workspaceRoot);
-						this.defaultCompileOption=opt;
+						let def = taskProvider.GetTaskDefinition(e.label);
+
+						opt = new CompileOption(def, this.workspaceRoot);
+						this.defaultCompileOption = opt;
 						return opt;
 					}
-					if(is_first){
-						is_first=false;
-						let def=taskProvider.GetTaskDefinition(e.label);					
-						opt = new CompileOption(def,this.workspaceRoot);
+					if (is_first) {
+						is_first = false;
+						let def = taskProvider.GetTaskDefinition(e.label);
+						opt = new CompileOption(def, this.workspaceRoot);
 					}
 
 				}
 			}
 		}
-		if(!opt){
-			opt=new CompileOption();
+		if (!opt) {
+			opt = new CompileOption();
 		}
-		this.defaultCompileOption=opt;
+		this.defaultCompileOption = opt;
 		return opt;
 	}
 	private findJsonDocumentPosition(documentText: string, taskItem: FpcItem) {
@@ -426,7 +461,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		// //log.methodDone("find json document position", 3, "   ", false, [["position", scriptOffset]]);
 		// return scriptOffset;
-		return documentText.indexOf('"label": "'+taskItem.label+'"');
+		return documentText.indexOf('"label": "' + taskItem.label + '"');
 	}
 	private async open(selection: FpcItem) {
 		if (selection.projectType === ProjectType.Lazarus) {
@@ -481,13 +516,13 @@ export class FpcItem extends vscode.TreeItem {
 			};
 			this.command = command;
 		}
-		
+
 		// 根据项目类型设置不同的图标
 		if (this.level === 0) {
 			if (projectType === ProjectType.Lazarus) {
 				this.iconPath = new vscode.ThemeIcon('package');
 			} else {
-				this.iconPath = path.join(__filename, '..','..',  'images','pascal-project.png');
+				this.iconPath = path.join(__filename, '..', '..', 'images', 'pascal-project.png');
 			}
 		} else {
 			this.iconPath = new vscode.ThemeIcon('wrench');
