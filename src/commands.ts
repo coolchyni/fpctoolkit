@@ -193,21 +193,21 @@ export class FpcCommandManager {
             // if (fs.existsSync(lpiFile)) {
             //     const doc = await vscode.workspace.openTextDocument(lpiFile);
             //     const text = doc.getText();
-            //     // 查找 <BuildModes> 区块（支持带属性的标签）
+            //     // Find <BuildModes> section (supports tags with attributes)
             //     const buildModesMatch = text.match(/<BuildModes[^>]*>([\s\S]*?)<\/BuildModes>/i);
             //     let offset = 0;
             //     if (buildModesMatch) {
             //         const buildModesContent = buildModesMatch[1];
             //         const fullMatch = buildModesMatch[0];
             //         const buildModesStart = (buildModesMatch.index || 0) + (fullMatch.length - buildModesContent.length - '</BuildModes>'.length);
-            //         // 尝试两种格式：<Item Name="..."> 和 <ItemX Name="...">
+            //         // Try two formats: <Item Name="..."> and <ItemX Name="...">
             //         let itemMatch: RegExpMatchArray | null = null;
                     
-            //         // 首先尝试 <Item Name="..."> 格式
+            //         // First try <Item Name="..."> format
             //         const itemRegex1 = new RegExp(`<Item\\s+Name\\s*=\\s*["']${node.label}["']`, 'i');
             //         itemMatch = buildModesContent.match(itemRegex1);
                     
-            //         // 如果没找到，尝试 <ItemX Name="..."> 格式（如 <Item1>, <Item2> 等）
+            //         // If not found, try <ItemX Name="..."> format (like <Item1>, <Item2>, etc.)
             //         if (!itemMatch) {
             //             const itemRegex2 = new RegExp(`<Item\\d*\\s+Name\\s*=\\s*["']${node.label}["']`, 'i');
             //             itemMatch = buildModesContent.match(itemRegex2);

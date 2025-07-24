@@ -1,5 +1,5 @@
 /**
- * 项目类型枚举
+ * Project type enumeration
  */
 export enum ProjectType {
     FPC = 'fpc',

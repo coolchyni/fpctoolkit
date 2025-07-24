@@ -78,7 +78,7 @@ export class LazarusUtils {
     private static outputChannel: vscode.OutputChannel | null = null;
 
     /**
-     * 初始化输出通道
+     * Initialize output channel
      */
     public static initializeOutputChannel(): void {
         if (!this.outputChannel) {
@@ -87,9 +87,9 @@ export class LazarusUtils {
     }
 
     /**
-     * 记录错误消息到输出通道
-     * @param message 错误消息
-     * @param error 错误对象（可选）
+     * Log error message to output channel
+     * @param message Error message
+     * @param error Error object (optional)
      */
     public static logError(message: string, error?: any): void {
         this.initializeOutputChannel();
@@ -112,8 +112,8 @@ export class LazarusUtils {
     }
 
     /**
-     * 记录警告消息到输出通道
-     * @param message 警告消息
+     * Log warning message to output channel
+     * @param message Warning message
      */
     public static logWarning(message: string): void {
         this.initializeOutputChannel();
@@ -123,8 +123,8 @@ export class LazarusUtils {
     }
 
     /**
-     * 记录信息消息到输出通道
-     * @param message 信息消息
+     * Log info message to output channel
+     * @param message Info message
      */
     public static logInfo(message: string): void {
         this.initializeOutputChannel();
@@ -133,8 +133,8 @@ export class LazarusUtils {
     }
 
     /**
-     * 获取默认目标操作系统
-     * @returns 默认目标操作系统
+     * Get default target operating system
+     * @returns Default target operating system
      */
     public static getDefaultTargetOS(): string {
         const platform = os.platform();
@@ -142,8 +142,8 @@ export class LazarusUtils {
     }
 
     /**
-     * 获取默认目标 CPU
-     * @returns 默认目标 CPU
+     * Get default target CPU
+     * @returns Default target CPU
      */
     public static getDefaultTargetCPU(): string {
         const arch = os.arch();
@@ -151,9 +151,9 @@ export class LazarusUtils {
     }
 
     /**
-     * 规范化目标操作系统名称
-     * @param os 目标操作系统名称
-     * @returns 规范化的操作系统名称
+     * Normalize target operating system name
+     * @param os Target operating system name
+     * @returns Normalized operating system name
      */
     public static normalizeTargetOS(os?: string): string | undefined {
         if (!os) {
@@ -186,9 +186,9 @@ export class LazarusUtils {
     }
 
     /**
-     * 规范化目标 CPU 名称
-     * @param cpu 目标 CPU 名称
-     * @returns 规范化的 CPU 名称
+     * Normalize target CPU name
+     * @param cpu Target CPU name
+     * @returns Normalized CPU name
      */
     public static normalizeTargetCPU(cpu?: string): string | undefined {
         if (!cpu) {
@@ -226,17 +226,17 @@ export class LazarusUtils {
     }
 
     /**
-     * 从 LPI 文件内容中获取特定构建模式的编译器部分
-     * @param content LPI 文件内容
-     * @param buildModeName 构建模式名称
-     * @returns 编译器部分内容，如果未找到则返回 null
+     * Get compiler section for specific build mode from LPI file content
+     * @param content LPI file content
+     * @param buildModeName Build mode name
+     * @returns Compiler section content, returns null if not found
      */
     public static getCompilerSectionForBuildMode(content: string, buildModeName: string): string | null {
         try {
-            // 转义构建模式名称中的特殊正则表达式字符
+            // Escape special regex characters in build mode name
             const escapedBuildModeName = buildModeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            // 模式 1：尝试查找 BuildMode 结构（较新的 Lazarus 版本）
+            // Pattern 1: Try to find BuildMode structure (newer Lazarus versions)
             const buildModePattern = new RegExp(
                 `<BuildMode[^>]*>\\s*<Name[^>]*Value=["']${escapedBuildModeName}["'][^>]*>([\\s\\S]*?)</BuildMode>`,
                 'i'
@@ -246,14 +246,14 @@ export class LazarusUtils {
             if (buildModeMatch) {
                 const buildModeSection = buildModeMatch[1];
 
-                // 在此构建模式中查找 CompilerOptions 部分
+                // Find CompilerOptions section in this build mode
                 const compilerOptionsMatch = buildModeSection.match(/<CompilerOptions[^>]*>([\s\S]*?)<\/CompilerOptions>/i);
                 if (compilerOptionsMatch) {
                     return compilerOptionsMatch[1];
                 }
             }
 
-            // 模式 2：尝试查找 Item 结构（在 LPI 文件中常见）
+            // Pattern 2: Try to find Item structure (common in LPI files)
             const itemPattern = new RegExp(
                 `<Item[^>]*Name=["']${escapedBuildModeName}["'][^>]*>([\\s\\S]*?)</Item>`,
                 'i'
@@ -263,14 +263,14 @@ export class LazarusUtils {
             if (itemMatch) {
                 const itemSection = itemMatch[1];
 
-                // 在此项目中查找 CompilerOptions 部分
+                // Find CompilerOptions section in this item
                 const compilerOptionsMatch = itemSection.match(/<CompilerOptions[^>]*>([\s\S]*?)<\/CompilerOptions>/i);
                 if (compilerOptionsMatch) {
                     return compilerOptionsMatch[1];
                 }
             }
 
-            // 模式 3：尝试查找编号的 Item 结构（如 <Item1>, <Item2> 等）
+            // Pattern 3: Try to find numbered Item structure (like <Item1>, <Item2>, etc.)
             const numberedItemPattern = new RegExp(
                 `<Item\\d*[^>]*Name=["']${escapedBuildModeName}["'][^>]*>([\\s\\S]*?)</Item\\d*>`,
                 'i'
@@ -280,7 +280,7 @@ export class LazarusUtils {
             if (itemMatch) {
                 const itemSection = itemMatch[1];
 
-                // 在此项目中查找 CompilerOptions 部分
+                // Find CompilerOptions section in this item
                 const compilerOptionsMatch = itemSection.match(/<CompilerOptions[^>]*>([\s\S]*?)<\/CompilerOptions>/i);
                 if (compilerOptionsMatch) {
                     return compilerOptionsMatch[1];

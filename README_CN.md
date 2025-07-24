@@ -132,6 +132,12 @@ msgIgnore|number[]|指定编译时哪些消息不需要显示.(-vmxxx)
 }
 ~~~
 
+## 扩展配置
+
+详细的扩展配置选项，请参阅：
+- [配置指南](CONFIGURATION_CN.md) (中文)
+- [Configuration Guide](CONFIGURATION.md) (English)
+
 # 致谢
 ## 语法高亮
 

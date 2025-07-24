@@ -208,9 +208,13 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				if (file.toLowerCase().endsWith('.lpr') || file.toLowerCase().endsWith('.dpr')) {
 					this.collectFpcProject(file, itemMaps, workspaceFolder);
 				}
-				// Handle .lpi files (Lazarus projects)
+				// Handle .lpi files (Lazarus projects) - only if Lazarus support is enabled
 				else if (file.toLowerCase().endsWith('.lpi')) {
-					this.collectLazarusProject(file, itemMaps, workspaceFolder);
+					const config = vscode.workspace.getConfiguration('fpctoolkit');
+					const lazarusEnabled = config.get<boolean>('lazarus.enabled', true);
+					if (lazarusEnabled) {
+						this.collectLazarusProject(file, itemMaps, workspaceFolder);
+					}
 				}
 			}
 		} catch (error) {
@@ -236,8 +240,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			const projectIntf = new FpcTaskProject(
 				file,
 				file,
-				false, // 初始不设为默认
-				null   // 没有任务定义
+				false, // Initially not set as default
+				null   // No task definition
 			);
 
 			// Create FpcItem and add to mapping
@@ -282,7 +286,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					vscode.TreeItemCollapsibleState.Expanded,
 					file,
 					true,
-					hasDefaultTask || false, // 根节点默认状态基于是否有默认任务
+					hasDefaultTask || false, // Root node default state based on whether there's a default task
 					ProjectType.Lazarus,
 					projectIntf
 				);

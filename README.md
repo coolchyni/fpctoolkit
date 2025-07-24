@@ -23,6 +23,7 @@ For Chinese documentation, see [中文文档](README_CN.md).
 - **Code Formatting** - Integrated [jcf cli](https://github.com/coolchyni/jcf-cli) formatter
 - **Quick Fixes** - Smart suggestions and auto-corrections
 - **Refactoring** - Symbol renaming and code actions
+- **MCP Server** - Model Context Protocol server for AI assistant integration
 
 ### Detailed Feature Overview
 
@@ -69,6 +70,13 @@ For Chinese documentation, see [中文文档](README_CN.md).
   - Remove unused units and clean up code
 - **Code Snippets**: Rich templates including class, if-else, begin-end, and more
 
+#### AI Integration
+- **MCP Server**: Model Context Protocol server for AI assistants
+  - Get compile commands for Pascal files
+  - Project information extraction
+  - Source file analysis
+  - Enable with `fpctoolkit.mcp.enabled` setting
+
 ## Pascal Language Server
 
 Based on [pascal-language-server](https://github.com/coolchyni/pascal-language-server)
@@ -113,6 +121,13 @@ syntaxMode | string | Syntax mode (-M)
 forceRebuild | boolean | Re-compile all used units, even if the unit sources didn’t change since the last compilation (-B)
 msgIgnore | number[] | List of message numbers to ignore (-vmxxx)
 
+#### Additional Options
+Field  | Type | Description  |
+-------| ---- |:---------------
+cleanExt | string | File extensions to clean when cleaning the project. Use `*` to clear all files. Default: (.o, .ppu, .lfm, .a, .or, .res)
+inherited | string | Inherit from another task
+buildEvent | object | Pre/post build event commands (e.g., `before_build`, `after_build_success`, `after_build_failure`)
+
 #### Example
 ~~~json
 {
@@ -133,6 +148,12 @@ msgIgnore | number[] | List of message numbers to ignore (-vmxxx)
   ]
 }
 ~~~
+
+## Extension Configuration
+
+For detailed extension configuration options, see:
+- [Configuration Guide](CONFIGURATION.md) (English)
+- [配置指南](CONFIGURATION_CN.md) (中文)
 
 # Thanks
 ## Syntax Highlighting

@@ -11,11 +11,14 @@ import { JediFormatter } from './formatter';
 import * as MyCodeAction from './languageServer/codeaction';
 import * as path from 'path';
 import * as fs from 'fs';
+import { McpManager } from './mcp';
+import { version } from 'os';
 export let client: TLangClient;
 export let formatter: JediFormatter;
 export let logger: vscode.OutputChannel;
 export let projectProvider: FpcProjectProvider;
 export let commandManager: FpcCommandManager;
+export let mcpManager: McpManager;
 
 // Check file updates and auto-compile before debugging
 async function checkAndBuildBeforeDebug(): Promise<void> {
@@ -70,7 +73,7 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
             }
         }
 
-        let defaultTask=defaultFpcItem?.projectTask?.getTask();
+        let defaultTask = defaultFpcItem?.projectTask?.getTask();
 
         if (!defaultTask) {
             logger.appendLine('Debug pre-check: No suitable task found for compilation');
@@ -227,14 +230,47 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     );
 
-
+    // Initialize MCP Manager - only if MCP support is enabled
+    const config = vscode.workspace.getConfiguration('fpctoolkit');
+    const mcpEnabled = config.get<boolean>('mcp.enabled', true);
+    if (mcpEnabled) {
+        mcpManager = new McpManager(context, workspaceRoot);
+        await mcpManager.initialize(projectProvider);
+    }
 
     MyCodeAction.activate(context);
+
+    // Listen for configuration changes to handle dynamic enabling/disabling of features
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(async (event) => {
+            // Handle Lazarus support configuration changes
+            if (event.affectsConfiguration('fpctoolkit.lazarus.enabled')) {
+                // Refresh project provider to show/hide Lazarus projects
+                if (projectProvider) {
+                    projectProvider.refresh();
+                }
+            }
+
+            // Handle MCP configuration changes
+            if (event.affectsConfiguration('fpctoolkit.mcp.enabled')) {
+                const newMcpEnabled = vscode.workspace.getConfiguration('fpctoolkit').get<boolean>('mcp.enabled', true);
+
+                if (newMcpEnabled && !mcpManager) {
+                    // MCP was enabled, initialize it
+                    mcpManager = new McpManager(context, workspaceRoot);
+                    await mcpManager.initialize(projectProvider);
+                } else if (!newMcpEnabled && mcpManager) {
+                    // MCP was disabled, dispose it
+                    await mcpManager.dispose();
+                    mcpManager = undefined as any;
+                }
+            }
+        })
+    );
 
     client = new TLangClient(projectProvider);
     await client.doInit();
     client.start();
-
 
 }
 
@@ -283,7 +319,12 @@ function onDidChangeVisibleTextEditors(editors: readonly vscode.TextEditor[]): v
     });
 }
 // this method is called when your extension is deactivated
-export function deactivate() {
+export async function deactivate() {
+    // Dispose MCP manager if it was initialized
+    if (mcpManager) {
+        await mcpManager.dispose();
+    }
+    // Stop language client if it was initialized
     if (!client) {
         return undefined;
     }

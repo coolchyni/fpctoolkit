@@ -51,5 +51,10 @@
     "config.format.tabsize": "制表符(tab)转空格数.",
     "config.format.enabled": "启用源码格式化(使用Jedi).",
     "config.format.cfgpath": "格式化配置文件路径(jcfsettings.cfg).",
-    "config.debug.autoBuild": "当文件有更改时，在调试前自动编译默认项目"
+    "config.debug.autoBuild": "当文件有更改时，在调试前自动编译默认项目",
+    "config.lazarus.enabled": "启用Lazarus项目支持，包括.lpi文件和Lazarus特定功能",
+    "config.mcp.enabled": "启用模型上下文协议(MCP)服务器，为AI助手提供编译命令信息",
+    "config.mcp.autoRegister": "启动时自动向Claude Desktop等外部应用程序注册MCP服务器",
+    "config.mcp.port": "MCP服务器端口 (0表示自动分配)",
+    "config.mcp.host": "MCP服务器主机地址"
 }

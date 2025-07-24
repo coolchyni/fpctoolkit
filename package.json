@@ -4,7 +4,7 @@
   "description": "Free pascal compile and build.",
   "version": "1.2.0",
   "engines": {
-    "vscode": "^1.44.0"
+    "vscode": "^1.89.0"
   },
   "icon": "images/logo.png",
   "categories": [
@@ -37,6 +37,12 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "pascal-mcp-server", 
+        "label": "Pascal MCP Server"
+      }
+    ],
     "languages": [
       {
         "id": "objectpascal",
@@ -432,6 +438,31 @@
             "type": "boolean",
             "default": true,
             "description": "%config.debug.autoBuild%"
+          },
+          "fpctoolkit.lazarus.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.lazarus.enabled%"
+          },
+          "fpctoolkit.mcp.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.mcp.enabled%"
+          },
+          "fpctoolkit.mcp.autoRegister": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.mcp.autoRegister%"
+          },
+          "fpctoolkit.mcp.port": {
+            "type": "number",
+            "default": 0,
+            "description": "%config.mcp.port%"
+          },
+          "fpctoolkit.mcp.host": {
+            "type": "string",
+            "default": "localhost",
+            "description": "%config.mcp.host%"
           }
         }
       },
@@ -577,17 +608,19 @@
     "esbuild-watch": "npm run -S esbuild-base -- --sourcemap --watch"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.16.0",
     "@types/fs-extra": "9.0.2",
     "fast-xml-parser": "^5.2.5",
     "fs-extra": "9.0.1",
     "vscode-languageclient": "^8.0.1",
-    "vscode-nls": "^3.2.5"
+    "vscode-nls": "^3.2.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/glob": "^7.2.0",
     "@types/mocha": "^7.0.2",
     "@types/node": "^13.13.52",
-    "@types/vscode": "^1.44.0",
+    "@types/vscode": "^1.89.0",
     "@typescript-eslint/eslint-plugin": "^5.28.0",
     "@typescript-eslint/parser": "^5.28.0",
     "esbuild": "^0.14.23",

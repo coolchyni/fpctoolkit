@@ -113,7 +113,7 @@ export class LazarusBuildModeTask implements IProjectTask {
      * @returns CompileOption object
      */
     getCompileOption(workspaceRoot: string): CompileOption {
-        // 创建任务定义
+        // Create task definition
         const taskDef = this.createTaskDefinition(workspaceRoot);
         return new CompileOption(taskDef, workspaceRoot);
     }
