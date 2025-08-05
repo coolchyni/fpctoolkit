@@ -4,19 +4,18 @@ import { ProjectType } from './providers/projectType';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
-import { BuildMode, FpcTask, FpcTaskDefinition, FpcTaskProvider, taskProvider } from './providers/task';
-import { CompileOption } from './languageServer/options';
-import { configuration } from './common/configuration'
+import { BuildMode, FpcTask, taskProvider } from './providers/task';
 import { client } from './extension';
 import { TextEditor, TextEditorEdit } from 'vscode';
-import { IProjectTask } from './providers/projectIntf';
+import { ProjectTemplateManager, ProjectTemplate } from './providers/projectTemplate';
 
 export class FpcCommandManager {
     // Static variable for storing extension context
     private static _context: vscode.ExtensionContext;
+    private templateManager: ProjectTemplateManager;
 
     constructor(private workspaceRoot: string) {
-
+        this.templateManager = new ProjectTemplateManager(workspaceRoot);
     }
 
     // Set extension context
@@ -37,11 +36,13 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.clean', this.projectClean));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.opensetting', this.ProjectOpen));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newfromtemplate', this.NewProjectFromTemplate));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.inittemplatedir', this.InitializeTemplateDirectory));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.openWithLazarus', this.openWithLazarus));
 
-        context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
+        //context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
     }
 
     ProjectAdd = async (node: FpcItem) => {
@@ -79,8 +80,41 @@ export class FpcCommandManager {
             if (!label) {
                 return;
             }
+
+            let tasks = config.tasks || [];
+            
+            // Check for duplicate labels and modify if necessary
+            let finalLabel = label;
+            const currentProjectName = path.basename(node.label, path.extname(node.label));
+            
+            // Find tasks with the same label
+            const duplicateTasks = tasks.filter((task: any) => task.label === label);
+            
+            if (duplicateTasks.length > 0) {
+                // Check if any duplicate task belongs to a different project
+                const differentProjectTask = duplicateTasks.find((task: any) => {
+                    const taskProjectName = path.basename(task.file, path.extname(task.file));
+                    return taskProjectName !== currentProjectName;
+                });
+                
+                if (differentProjectTask) {
+                    // If there's a task with same label from different project, add project name suffix
+                    finalLabel = `${label}-${currentProjectName}`;
+                    
+                    // Check if the new label with project name suffix is still duplicate
+                    if (tasks.some((task: any) => task.label === finalLabel)) {
+                        vscode.window.showWarningMessage(`Task "${finalLabel}" already exists. Skipping task creation.`);
+                        return;
+                    }
+                } else {
+                    // If all duplicate tasks are from the same project, don't add the task
+                    vscode.window.showWarningMessage(`Task "${label}" already exists for this project. Skipping task creation.`);
+                    return;
+                }
+            }
+
             let v = {
-                "label": label,
+                "label": finalLabel,
                 "file": node.label,
                 "type": "fpc",
                 "buildOption": {
@@ -95,12 +129,7 @@ export class FpcCommandManager {
                 v.buildOption.customOptions = [customOption, '-gw2'];
             }
 
-            let tasks = config.tasks;
-            if (tasks) {
-                tasks.push(v);
-            } else {
-                tasks = [v];
-            }
+            tasks.push(v);
             config.update(
                 "tasks",
                 tasks,
@@ -236,56 +265,59 @@ export class FpcCommandManager {
     };
 
     ProjectNew = async () => {
-        let s = `program main;
-{$mode objfpc}{$H+}
-uses
-  classes,sysutils;
-begin 
-   
-end.`;
+        try {
+            const templates = await this.templateManager.getAvailableTemplates();
+            
+            if (templates.length === 0) {
+                const initChoice = await vscode.window.showInformationMessage(
+                    'No project templates found. Would you like to initialize the default template directory?',
+                    'Initialize Templates', 'Cancel'
+                );
+                
+                if (initChoice === 'Initialize Templates') {
+                    await this.InitializeTemplateDirectory();
+                    // 重新获取模板
+                    const newTemplates = await this.templateManager.getAvailableTemplates();
+                    if (newTemplates.length > 0) {
+                        await this.showTemplateSelection(newTemplates);
+                    }
+                }
+                return;
+            }
+            
+            await this.showTemplateSelection(templates);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to load project templates: ${error}`);
+        }
+    };
 
-        let file = path.join(this.workspaceRoot, "main.lpr");
+    private async showTemplateSelection(templates: ProjectTemplate[]): Promise<void> {
+        const templateItems = templates.map(template => ({
+            label: template.name,
+            description: template.description,
+            template: template
+        }));
 
-        fs.writeFile(file, s, () => {
-            let f = vscode.workspace.openTextDocument(file);
-            f.then((doc) => {
-                vscode.window.showTextDocument(doc, vscode.ViewColumn.One)
-                    .then((e: vscode.TextEditor) => {
-                        let pos = new vscode.Position(2, 4);
-                        e.selection = new vscode.Selection(pos, pos);
-                    });
-            });
+        const selected = await vscode.window.showQuickPick(templateItems, {
+            placeHolder: 'Select a project template'
         });
 
-        let config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
-
-        let v = {
-            "label": "debug",
-            "file": "main.lpr",
-            "type": "fpc",
-            "presentation": {
-                "showReuseMessage": false,
-                "clear": true,
-                "revealProblems": "onProblem"
-            },
-            "buildOption": {
-                "unitOutputDir": "./out",
-                "customOptions": [
-                    "-dDEBUG"
-                ]
-            }
-        };
-        let tasks = config.tasks;
-        if (tasks) {
-            tasks.push(v);
-        } else {
-            tasks = [v];
+        if (selected) {
+            await this.templateManager.createProjectFromTemplate(selected.template);
         }
-        config.update(
-            "tasks",
-            tasks,
-            vscode.ConfigurationTarget.WorkspaceFolder
-        );
+    }
+
+    NewProjectFromTemplate = async () => {
+        await this.ProjectNew();
+    };
+
+    InitializeTemplateDirectory = async () => {
+        try {
+            await this.templateManager.initializeDefaultTemplates();
+            vscode.window.showInformationMessage('Template directory initialized successfully!');
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to initialize template directory: ${error}`);
+        }
     };
 
     projectClean = async (node: FpcItem) => {
@@ -441,11 +473,8 @@ end.`;
     };
 
     CodeComplete = (textEditor: TextEditor, edit: TextEditorEdit) => {
-        client.sendRequest('textDocument/completion', {
-            textDocument: { uri: textEditor.document.uri.toString() },
-            position: textEditor.selection.active
-        }).then((result) => {
-            console.log(result);
-        });
+        // This method is deprecated and will be removed
+        // Code completion is now handled by the language server directly
+        vscode.commands.executeCommand('editor.action.triggerSuggest');
     };
 }

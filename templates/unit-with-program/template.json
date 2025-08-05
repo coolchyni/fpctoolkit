@@ -1,0 +1,35 @@
+{
+  "name": "Program with Unit",
+  "description": "A program with a separate unit file demonstrating modular programming",
+  "files": [
+    {
+      "source": "main.lpr",
+      "target": "main.lpr",
+      "cursorPosition": { "line": 9, "column": 4 }
+    },
+    {
+      "source": "myunit.pas",
+      "target": "myunit.pas"
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "debug",
+      "file": "main.lpr",
+      "type": "fpc",
+      "presentation": {
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem"
+      },
+      "buildOption": {
+        "unitOutputDir": "./out",
+        "customOptions": ["-dDEBUG", "-gw2"]
+      }
+    }
+  ]
+}

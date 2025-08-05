@@ -127,6 +127,16 @@
         "command": "fpctoolkit.project.openWithLazarus",
         "title": "Open with Lazarus",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "fpctoolkit.project.newfromtemplate",
+        "title": "%project.newfromtemplate%",
+        "icon": "$(file-add)"
+      },
+      {
+        "command": "fpctoolkit.project.inittemplatedir",
+        "title": "%project.inittemplatedir%",
+        "icon": "$(folder-library)"
       }
     ],
     "keybindings": [
@@ -472,6 +482,14 @@
             "type": "string",
             "default": "localhost",
             "description": "%config.mcp.host%"
+          },
+          "fpctoolkit.project.templateDirectories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "description": "%config.project.templateDirectories%"
           }
         }
       },

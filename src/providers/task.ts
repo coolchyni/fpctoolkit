@@ -23,6 +23,9 @@ export class BuildOption {
 	syntaxMode?: string;
 	forceRebuild?: boolean = false;
 	msgIgnore?: Number[];
+	cwd?: string;
+	objectPath?: string;
+	cleanExt?: string;
 };
 
 export class BuildEvent{

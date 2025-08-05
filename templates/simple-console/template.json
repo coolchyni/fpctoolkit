@@ -1,0 +1,45 @@
+{
+  "name": "Simple Console App",
+  "description": "A basic console application with greeting message",
+  "files": [
+    {
+      "source": "main.lpr",
+      "target": "main.lpr",
+      "cursorPosition": { "line": 8, "column": 4 }
+    },
+    {
+      "source": "README.md",
+      "target": "README.md"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "debug",
+      "file": "main.lpr",
+      "type": "fpc",
+      "presentation": {
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem"
+      },
+      "buildOption": {
+        "unitOutputDir": "./out",
+        "customOptions": ["-dDEBUG", "-gw2"]
+      }
+    },
+    {
+      "label": "release",
+      "file": "main.lpr",
+      "type": "fpc",
+      "presentation": {
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem"
+      },
+      "buildOption": {
+        "unitOutputDir": "./out",
+        "customOptions": ["-dRELEASE", "-O2"]
+      }
+    }
+  ]
+}

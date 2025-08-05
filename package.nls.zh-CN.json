@@ -57,5 +57,8 @@
     "config.mcp.enabled": "启用模型上下文协议(MCP)服务器，为AI助手提供编译命令信息",
     "config.mcp.autoRegister": "启动时自动向Claude Desktop等外部应用程序注册MCP服务器",
     "config.mcp.port": "MCP服务器端口 (0表示自动分配)",
-    "config.mcp.host": "MCP服务器主机地址"
+    "config.mcp.host": "MCP服务器主机地址",
+    "project.newfromtemplate": "从模板创建新项目",
+    "project.inittemplatedir": "初始化模板目录",
+    "config.project.templateDirectories": "搜索项目模板的自定义目录。可以是绝对路径或相对于工作区根目录的路径。"
 }

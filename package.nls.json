@@ -57,5 +57,8 @@
     "config.mcp.enabled": "Enable Model Context Protocol (MCP) server to provide compilation command information for AI assistants",
     "config.mcp.autoRegister": "Automatically register MCP server with external applications like Claude Desktop on startup",
     "config.mcp.port": "MCP server port (0 means auto-assign)",
-    "config.mcp.host": "MCP server host address"
+    "config.mcp.host": "MCP server host address",
+    "project.newfromtemplate": "New Project from Template",
+    "project.inittemplatedir": "Initialize Template Directory",
+    "config.project.templateDirectories": "Custom directories to search for project templates. Can be absolute paths or relative to workspace root."
 }
