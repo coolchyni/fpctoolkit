@@ -287,7 +287,7 @@ export class LazarusUtils {
                 }
             }
 
-            // 如果在构建模式特定部分中未找到，则查找全局编译器选项
+            // If not found in build mode specific section, look for global compiler options
             const globalCompilerMatch = content.match(/<CompilerOptions[^>]*>([\s\S]*?)<\/CompilerOptions>/i);
             if (globalCompilerMatch) {
                 return globalCompilerMatch[1];
@@ -301,10 +301,10 @@ export class LazarusUtils {
     }
 
     /**
-     * 提取特定构建模式的目标平台信息和目标文件
-     * @param content LPI 文件内容
-     * @param buildModeName 构建模式名称
-     * @returns 包含目标操作系统、CPU 和目标文件的对象
+     * Extract target platform information and target file for specific build mode
+     * @param content LPI file content
+     * @param buildModeName Build mode name
+     * @returns Object containing target OS, CPU and target file
      */
     public static extractTargetPlatformForBuildMode(content: string, buildModeName: string): {
         targetOS?: string;
@@ -314,7 +314,7 @@ export class LazarusUtils {
         const result: { targetOS?: string; targetCPU?: string; targetFile?: string } = {};
 
         try {
-            // 获取此构建模式的编译器部分
+            // Get compiler section for this build mode
             const compilerSection = this.getCompilerSectionForBuildMode(content, buildModeName);
 
             if (compilerSection) {
@@ -375,24 +375,24 @@ export class LazarusUtils {
 
 export class LazarusProjectParser {
     /**
-     * 解析 Lazarus 项目文件（.lpi）并提取项目信息
-     * @param lpiFilePath .lpi 文件的路径
-     * @returns 项目接口对象
+     * Parse Lazarus project file (.lpi) and extract project information
+     * @param lpiFilePath Path to the .lpi file
+     * @returns Project interface object
      */
     public static parseLpiFile(lpiFilePath: string): IProjectIntf {
         try {
-            // 检查文件是否存在
+            // Check if file exists
             if (!fs.existsSync(lpiFilePath)) {
                 LazarusUtils.logWarning(`Lazarus project file does not exist: ${lpiFilePath}`);
                 return this.createDefaultProjectInfo(lpiFilePath);
             }
 
-            // 读取 .lpi 文件内容并处理错误
+            // Read .lpi file content and handle errors
             let lpiContent: string;
             try {
                 lpiContent = fs.readFileSync(lpiFilePath, 'utf8');
 
-                // 验证 XML 内容
+                // Validate XML content
                 if (!lpiContent || lpiContent.trim() === '') {
                     throw new Error('Empty file content');
                 }
@@ -401,7 +401,7 @@ export class LazarusProjectParser {
                 return this.createDefaultProjectInfo(lpiFilePath);
             }
 
-            // 检查同名的 .lps 文件（Session file）
+            // Check for corresponding .lps file (Session file)
             const lpsFilePath = lpiFilePath.replace(/\.lpi$/i, '.lps');
             let lpsContent: string | null = null;
             
@@ -415,7 +415,7 @@ export class LazarusProjectParser {
                 }
             }
 
-            // 使用 fast-xml-parser 解析 XML
+            // Parse XML using fast-xml-parser
             const parser = new XMLParser({
                 ignoreAttributes: false,
                 attributeNamePrefix: '@_',
@@ -432,7 +432,7 @@ export class LazarusProjectParser {
                 return this.createDefaultProjectInfo(lpiFilePath);
             }
 
-            // 解析 .lps 文件（如果存在）
+            // Parse .lps file (if exists)
             let lpsXmlObj = null;
             if (lpsContent) {
                 try {
@@ -443,7 +443,7 @@ export class LazarusProjectParser {
                 }
             }
 
-            // 导航到 CONFIG 部分
+            // Navigate to CONFIG section
             if (!lpiXmlObj.CONFIG) {
                 LazarusUtils.logWarning(`Invalid Lazarus project file: ${lpiFilePath} - missing CONFIG section`);
                 return this.createDefaultProjectInfo(lpiFilePath);
@@ -451,32 +451,32 @@ export class LazarusProjectParser {
 
             const config = lpiXmlObj.CONFIG;
 
-            // 提取项目标题
+            // Extract project title
             let projectTitle = path.basename(lpiFilePath, '.lpi');
             if (config.ProjectOptions?.Title?.['@_Value']) {
                 projectTitle = config.ProjectOptions.Title['@_Value'];
             }
 
-            // 提取主文件
+            // Extract main file
             let mainFile = '';
             let mainUnitIndex = -1;
 
-            // 尝试获取主单元索引
+            // Try to get main unit index
             if (config.ProjectOptions?.MainUnit?.['@_Value'] !== undefined) {
                 mainUnitIndex = parseInt(config.ProjectOptions.MainUnit['@_Value']);
             }
 
-            // 查找相应的单元文件
+            // Find corresponding unit file
             if (config.ProjectOptions?.Units) {
                 const units = config.ProjectOptions.Units;
 
-                // 处理 Units 的不同 XML 结构
+                // Handle different XML structures of Units
                 if (mainUnitIndex >= 0) {
-                    // 首先尝试索引访问
+                    // Try index access first
                     if (units[`Unit${mainUnitIndex}`]?.Filename?.['@_Value']) {
                         mainFile = units[`Unit${mainUnitIndex}`].Filename['@_Value'];
                     } else if (Array.isArray(units.Unit)) {
-                        // 如果 Units.Unit 是数组，查找具有正确索引的单元
+                        // If Units.Unit is an array, find the unit with the correct index
                         for (const unit of units.Unit) {
                             if (unit['@_UnitName'] === `Unit${mainUnitIndex}` && unit.Filename?.['@_Value']) {
                                 mainFile = unit.Filename['@_Value'];
@@ -486,10 +486,10 @@ export class LazarusProjectParser {
                     }
                 }
 
-                // 如果仍未找到，在 Units.Unit 数组中查找 .lpr 文件
+                // If still not found, look for .lpr file in Units.Unit array
                 if (!mainFile && units) {
                     if(Array.isArray(units.Unit)) {
-                        // 数组形式的 Units
+                        // Array form of Units
                         for (const unit of units.Unit) {
                             if (unit.Filename?.['@_Value']?.endsWith('.lpr') || unit.Filename?.['@_Value']?.endsWith('.dpr')) {
                                 mainFile = unit.Filename['@_Value'];
@@ -507,37 +507,37 @@ export class LazarusProjectParser {
                             }
                         }
                     } else if (units.Unit) {
-                        // 单个单元情况
+                        // Single unit case
                         mainFile = units.Unit.Filename['@_Value'];
                     } 
                     if(!mainFile) {
-                        mainFile = projectTitle + '.lpr'; // 默认使用项目标题作为主文件
+                        mainFile = projectTitle + '.lpr'; // Use project title as main file by default
                     }
                 }
             }
 
-            // 获取活动模式（如果指定）
+            // Get active mode (if specified)
             let activeMode: string | undefined;
             if (config.ProjectOptions?.ActiveMode?.['@_Value']) {
                 activeMode = config.ProjectOptions.ActiveMode['@_Value'];
             }
 
-            // 创建主项目信息对象
+            // Create main project info object
             const projectInfo = new LazarusProject(
                 projectTitle,
                 mainFile,
                 path.basename(lpiFilePath),
-                false // 默认状态将在后面确定
+                false // Default status will be determined later
             );
 
-            // 提取所需包（RequiredPackages）
+            // Extract required packages
             this.extractRequiredPackages(config, projectInfo);
 
-            // 提取构建模式（合并 .lpi 和 .lps 文件中的构建模式）
+            // Extract build modes (merge build modes from .lpi and .lps files)
             let foundBuildModes = false;
             let skippedBuildModes = 0;
 
-            // 从两个文件中获取构建模式
+            // Get build modes from both files
             const allBuildModes = this.extractBuildModesFromBothFiles(config, lpsXmlObj);
             let useLCL=projectInfo.requiredPackages.includes('LCL');
 
@@ -545,16 +545,16 @@ export class LazarusProjectParser {
                 foundBuildModes = true;
                 LazarusUtils.logInfo(`Found ${allBuildModes.length} build modes from .lpi and .lps files`);
 
-                // 处理每个构建模式
+                // Process each build mode
                 for (const mode of allBuildModes) {
                     foundBuildModes = true;
 
-                    // 提取模式名称和 ID
+                    // Extract mode name and ID
                     let modeName = '';
                     let modeId = '';
                     let isDefault = false;
 
-                    // 处理 Name 和 Identifier 的不同 XML 结构
+                    // Handle different XML structures for Name and Identifier
                     if (mode['@_Name']) {
                         modeName = mode['@_Name'];
                     } else if (mode.Name?.['@_Value']) {
@@ -563,7 +563,7 @@ export class LazarusProjectParser {
                         modeName = mode.Name.Value;
                     }
 
-                    // 检查这是否是默认模式
+                    // Check if this is the default mode
                     if (mode['@_Default'] === 'True' || mode['@_Default'] === true) {
                         isDefault = true;
                     }
@@ -573,39 +573,39 @@ export class LazarusProjectParser {
                     } else if (mode.Identifier?.Value) {
                         modeId = mode.Identifier.Value;
                     } else if (modeName) {
-                        // 如果未指定，则从名称生成 ID
+                        // If not specified, generate ID from name
                         modeId = modeName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
                     }
 
-                    // 如果没有有效的名称，则跳过
+                    // Skip if no valid name
                     if (!modeName) {
                         LazarusUtils.logWarning(`Skipping build mode with missing name in ${lpiFilePath}`);
                         continue;
                     }
 
-                    // 根据构建模式来源选择正确的内容
+                    // Choose correct content based on build mode source
                     const sourceContent = mode._sourceFile === 'lps' ? lpsContent : lpiContent;
                     LazarusUtils.logInfo(`Processing build mode "${modeName}" from .${mode._sourceFile} file`);
                     
-                    // 提取此构建模式的目标平台
+                    // Extract target platform for this build mode
                     const targetPlatform = LazarusUtils.extractTargetPlatformForBuildMode(sourceContent || lpiContent, modeName);
 
-                    // 提取此构建模式的搜索路径
+                    // Extract search paths for this build mode
                     const searchPaths = this.extractSearchPathsForBuildMode(sourceContent || lpiContent, modeName);
 
-                    // 创建此构建模式的 LazarusBuildMode 对象
+                    // Create LazarusBuildMode object for this build mode
                     const buildMode = new LazarusBuildModeTask(
                         modeName,
-                        false, // 将在后面基于优先级规则确定
+                        false, // Will be determined later based on priority rules
                         mode._sourceFile === 'lpi',
                         projectInfo,
                         modeName,
                         targetPlatform.targetOS,
                         targetPlatform.targetCPU,
-                        targetPlatform.targetFile // 从构建模式的编译器选项中获取目标文件名
+                        targetPlatform.targetFile // Get target file name from build mode's compiler options
                     );
 
-                    // 设置附加属性
+                    // Set additional properties
                     buildMode.targetOS = targetPlatform.targetOS;
                     buildMode.targetCPU = targetPlatform.targetCPU;
                     buildMode.unitPaths = searchPaths.unitPaths;
@@ -614,24 +614,24 @@ export class LazarusProjectParser {
                     buildMode.outputDirectory = searchPaths.outputDirectory;
                     buildMode.objectPath = searchPaths.objectPath;
                     buildMode.useLCL = useLCL;
-                    // 提取此构建模式的编译器选项（使用正确的源内容）
+                    // Extract compiler options for this build mode (using correct source content)
                     this.extractDetailedBuildOptionsForBuildMode(buildMode, sourceContent || lpiContent);
 
-                    // 存储构建模式来源信息
+                    // Store build mode source info
                     (buildMode as any)._sourceFile = mode._sourceFile;
 
             
 
-                    // 存储用于默认确定的附加元数据
+                    // Store additional metadata for default determination
                     (buildMode as any)._isLazarusDefault = isDefault;
                     (buildMode as any)._isActiveMode = activeMode === modeId;
 
-                    // 将构建模式添加到项目的任务列表
+                    // Add build mode to project's task list
                     projectInfo.tasks.push(buildMode);
                 }
             }
 
-            // 如果没有找到构建模式或所有构建模式都被跳过，创建一个默认的
+            // If no build modes found or all skipped, create a default one
             if (projectInfo.tasks.length === 0) {
                 if (foundBuildModes) {
                     LazarusUtils.logWarning(`All build modes in ${lpiFilePath} were skipped because they don't have compiler options`);
@@ -639,29 +639,29 @@ export class LazarusProjectParser {
                     LazarusUtils.logWarning(`No build modes found in ${lpiFilePath}, creating default`);
                 }
 
-                // 获取系统默认值
+                // Get system defaults
                 const systemDefaults = LazarusUtils.getSystemDefaults();
                 
-                // 创建默认构建模式
+                // Create default build mode
                 const defaultBuildMode = new LazarusBuildModeTask(
                     'Default',
-                    true, // 这是默认任务
+                    true, // This is the default task
                     true,
                     projectInfo,
                     'Default',
                     systemDefaults.targetOS,
                     systemDefaults.targetCPU,
-                    undefined // 默认构建模式没有明确的目标文件名
+                    undefined // No explicit target file name for default build mode
                 );
                 defaultBuildMode.targetOS = systemDefaults.targetOS;
                 defaultBuildMode.targetCPU = systemDefaults.targetCPU;
-                defaultBuildMode.compilerOptions = ['-B']; // 基本的强制重建选项
+                defaultBuildMode.compilerOptions = ['-B']; // Basic force rebuild option
 
-                // 将默认构建模式添加到项目的任务列表
+                // Add default build mode to project's task list
                 projectInfo.tasks.push(defaultBuildMode);
             }
 
-            // 记录构建模式处理的摘要
+            // Log summary of build mode processing
             if (foundBuildModes) {
                 if (skippedBuildModes > 0) {
                     LazarusUtils.logInfo(`Processed ${projectInfo.tasks.length + skippedBuildModes} build modes in ${lpiFilePath}, skipped ${skippedBuildModes} modes without compiler options`);
