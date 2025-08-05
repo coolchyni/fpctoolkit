@@ -230,12 +230,17 @@ export async function activate(context: vscode.ExtensionContext) {
     )
     );
 
-    // Initialize MCP Manager - only if MCP support is enabled
+    // Initialize MCP Manager - only if MCP support is enabled and API is available
     const config = vscode.workspace.getConfiguration('fpctoolkit');
     const mcpEnabled = config.get<boolean>('mcp.enabled', true);
     if (mcpEnabled) {
-        mcpManager = new McpManager(context, workspaceRoot);
-        await mcpManager.initialize(projectProvider);
+        try {
+            mcpManager = new McpManager(context, workspaceRoot);
+            await mcpManager.initialize(projectProvider);
+        } catch (error) {
+            console.error('Failed to initialize MCP Manager:', error);
+            logger.appendLine(`MCP initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
     MyCodeAction.activate(context);
@@ -257,12 +262,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
                 if (newMcpEnabled && !mcpManager) {
                     // MCP was enabled, initialize it
-                    mcpManager = new McpManager(context, workspaceRoot);
-                    await mcpManager.initialize(projectProvider);
+                    try {
+                        mcpManager = new McpManager(context, workspaceRoot);
+                        await mcpManager.initialize(projectProvider);
+                    } catch (error) {
+                        console.error('Failed to initialize MCP Manager:', error);
+                        logger.appendLine(`MCP initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
                 } else if (!newMcpEnabled && mcpManager) {
                     // MCP was disabled, dispose it
-                    await mcpManager.dispose();
-                    mcpManager = undefined as any;
+                    try {
+                        await mcpManager.dispose();
+                        mcpManager = undefined as any;
+                    } catch (error) {
+                        console.error('Failed to dispose MCP Manager:', error);
+                        logger.appendLine(`MCP disposal failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                    }
                 }
             }
         })

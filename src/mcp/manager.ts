@@ -27,15 +27,17 @@ export class McpManager {
     async initialize(projectProvider: FpcProjectProvider): Promise<void> {
         this.projectProvider = projectProvider;
         
-       
-        
+        // Check if MCP API is available before proceeding
+        if (!this.isMcpApiAvailable()) {
+            console.log('MCP API not available, skipping MCP initialization');
+            return;
+        }
 
         // Check if MCP server should be started based on configuration
         if (this.isMcpEnabled()) {
             await this.startMcpServer();
             // Register the MCP server definition provider first
             await this.registerServer();
-
         }
     }
 
@@ -126,7 +128,7 @@ export class McpManager {
         
         // Handle auto-registration changes
         if (event.affectsConfiguration('fpctoolkit.mcp.autoRegister') && this.mcpServer) {
-            if (this.autoRegisterEnabled) {
+            if (this.autoRegisterEnabled && this.isMcpApiAvailable()) {
                 await this.registerMcpServer();
             }
         }
@@ -159,50 +161,96 @@ export class McpManager {
             await this.stopMcpServer();
         }
         
-        if (this.isMcpEnabled()) {
+        if (this.isMcpEnabled() && this.isMcpApiAvailable()) {
             await this.startMcpServer();
+            await this.registerServer();
         }
     }
     
     /**
+     * Check if MCP API is available in current VS Code version
+     */
+    private isMcpApiAvailable(): boolean {
+        return typeof vscode.lm?.registerMcpServerDefinitionProvider === 'function';
+    }
+
+    /**
+     * Public method to check if MCP is supported in current environment
+     */
+    public isMcpSupported(): boolean {
+        return this.isMcpApiAvailable();
+    }
+
+    /**
+     * Get MCP status information
+     */
+    public getMcpStatus(): { supported: boolean; enabled: boolean; running: boolean; apiAvailable: boolean } {
+        return {
+            supported: this.isMcpApiAvailable(),
+            enabled: this.isMcpEnabled(),
+            running: this.isRunning(),
+            apiAvailable: this.isMcpApiAvailable()
+        };
+    }
+
+    /**
      * Register the MCP server with VS Code
      */
     async registerServer(): Promise<void> {
-        this.mcpServerDisposable = vscode.lm.registerMcpServerDefinitionProvider('pascal-mcp-server', {
-            onDidChangeMcpServerDefinitions: this.didChangeEmitter.event,
-            provideMcpServerDefinitions: async () => {
-                let servers: vscode.McpServerDefinition[] = [];
-
-                // Only register when server is running
-                if (this.mcpServer && this.mcpServer.isRunning()) {
-                    const serverStatus = this.mcpServer.getServerStatus();
-                    if (serverStatus.mcpUrl) {
-                        servers.push(new vscode.McpHttpServerDefinition(
-                            'pascal-mcp-server',
-                            vscode.Uri.parse(serverStatus.mcpUrl),
-                            {
-                                'Content-Type': 'application/json',
-                                'User-Agent': 'FPCToolkit-Extension'
-                            },
-                            "1.0.0"
-                        ));
-                    }
+        // Check if MCP API is available
+        if (!this.isMcpApiAvailable()) {
+            console.warn('MCP API is not available in this VS Code version. MCP server registration skipped.');
+            vscode.window.showWarningMessage(
+                'MCP functionality requires a newer version of VS Code. Please update VS Code to use MCP features.',
+                'Learn More'
+            ).then(selection => {
+                if (selection === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://code.visualstudio.com/updates'));
                 }
+            });
+            return;
+        }
 
-                return servers;
-            },
-            resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
-                if (server.label === 'pascal-mcp-server') {
-                    // Ensure server is running
-                    if (!this.mcpServer || !this.mcpServer.isRunning()) {
-                        throw new Error('Pascal MCP Server is not running');
+        try {
+            this.mcpServerDisposable = vscode.lm.registerMcpServerDefinitionProvider('pascal-mcp-server', {
+                onDidChangeMcpServerDefinitions: this.didChangeEmitter.event,
+                provideMcpServerDefinitions: async () => {
+                    let servers: vscode.McpServerDefinition[] = [];
+
+                    // Only register when server is running
+                    if (this.mcpServer && this.mcpServer.isRunning()) {
+                        const serverStatus = this.mcpServer.getServerStatus();
+                        if (serverStatus.mcpUrl) {
+                            servers.push(new vscode.McpHttpServerDefinition(
+                                'pascal-mcp-server',
+                                vscode.Uri.parse(serverStatus.mcpUrl),
+                                {
+                                    'Content-Type': 'application/json',
+                                    'User-Agent': 'FPCToolkit-Extension'
+                                },
+                                "1.0.0"
+                            ));
+                        }
                     }
+
+                    return servers;
+                },
+                resolveMcpServerDefinition: async (server: vscode.McpServerDefinition) => {
+                    if (server.label === 'pascal-mcp-server') {
+                        // Ensure server is running
+                        if (!this.mcpServer || !this.mcpServer.isRunning()) {
+                            throw new Error('Pascal MCP Server is not running');
+                        }
+                    }
+                    return server;
                 }
-                return server;
-            }
-        });
-        
-        this.context.subscriptions.push(this.mcpServerDisposable);
+            });
+            
+            this.context.subscriptions.push(this.mcpServerDisposable);
+        } catch (error) {
+            console.error('Failed to register MCP server definition provider:', error);
+            vscode.window.showErrorMessage(`Failed to register MCP server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
     
     /**
