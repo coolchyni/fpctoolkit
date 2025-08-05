@@ -1,150 +1,175 @@
-# FreePascal Toolkit 
-`FreePascal Toolkit` is a VSCode extension for developing FreePascal applications.
+# FreePascal Toolkit
+`FreePascal Toolkit` is a VS Code extension for developing FreePascal programs.
 
 ![FreePascal Toolkit preview](images/doc/fpctoolkit.gif)
 
-[中文文档](README_CN.md)
+For Chinese documentation, see [中文文档](README_CN.md).
+
 ## Requirements
 
-- Install [Lazarus](https://www.lazarus-ide.org/) or  [FreePascal](https://www.freepascal.org/download.var)  on your system. 
-
-- The extendsion will auto search the path of fpc. If it's not be found, please set the system PATH environment variable, or set `fpctoolkit.env.PP` in vscode's user setting. 
-
-- Install [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) to debug your freepascal program .
-
+- Install [Lazarus](https://www.lazarus-ide.org/) or [FreePascal](https://www.freepascal.org/download.var).
+- The extension will automatically search for the FPC path. If not found, please add FPC to your system PATH, or set `fpctoolkit.env.PP` in the extension settings.
+- Install [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) for debugging.
 
 ## Features
-- build freepascal program 
-	- Build 
-	- Rebuild
-	- Clear
-- explorer build tasks
-	- Customize build tasks
-	- Inherted from other task
-- code snippets
-	- A lot of snippets for code quick edit.
-		* class
-		* if-else
-		* begin-end
-		* ... 
-- auto completion
- 	
-	![](images/doc/code-snippets.gif)
-	
-- gotoDeclaration, gotoDefinition
-	- Use `ctrl+up`,`ctrl+down` to jump between declaration and implementation.
-- class and function references
-		
-	![](images/doc/documentsymbol.gif)
-	
-- documentHighlight
-	- High light for source code 
-	- Identify the compilation conditions for the definition. `{$IFDEF} {ELSE} {$ENDIF}`
 
-- code format with [jcf cli](https://github.com/coolchyni/jcf-cli)
+### Core Features
+- **Project Management** - Build, rebuild, and clean FreePascal and Lazarus programs
+- **Lazarus LPI Support** - Full project file support with multi-mode build management
+- **Advanced Build System** - Customizable tasks with inheritance and cross-platform compilation
+- **Code Intelligence** - Auto-completion, go-to-definition, and symbol references
+- **Code Snippets** - Rich templates for rapid development
+- **Syntax Highlighting** - Pascal syntax with conditional compilation support
+- **Code Formatting** - Integrated [jcf cli](https://github.com/coolchyni/jcf-cli) formatter
+- **Quick Fixes** - Smart suggestions and auto-corrections
+- **Refactoring** - Symbol renaming and code actions
+- **MCP Server** - Model Context Protocol server for AI assistant integration
 
-	![](images/doc/format.gif) 
-	
-	- Format source code
-	- Use `jcfsettings.cfg` as config. Will use lazarus's config if it installed. 
-- quick fix 
-	- Quick fix for `(5025) Local variable "xxx" not used`
-  
- 	![](images/doc/quickfix.gif) 
+### Detailed Feature Overview
 
-- auto rename symbols
-	- Rename function,procedure,variable and it's reference. 
-- code complete 
-	- Use `ctrl+shift+c` auto implement procedure .
-- code actions
-	- remove unused units
-## Pascal Language Server 
+#### Project & Build Management
+- **Lazarus LPI Project Support**: Automatically detects and parses `.lpi` project files, extracts all build modes, and supports multi-mode build management
+- **Advanced Task System**:
+  - Customize build tasks with inheritance
+  - Support for custom build options (target platform/CPU, output directory, compiler flags, etc.)
+  - Cross-platform and multi-architecture compilation (Linux/Windows/macOS, x86_64/i386, etc.)
+  - Pre/post build event support for automation and integration
+  - Seamless management of mixed FreePascal and Lazarus projects
 
-from [pascal-language-server](https://github.com/coolchyni/pascal-language-server)
+#### Code Intelligence & Navigation
+- **Smart Auto-completion**: Intelligent completion for functions, procedures, classes, variables, and keywords
 
-An [LSP](https://microsoft.github.io/language-server-protocol/) server
-implementation for Pascal variants that are supported by [Free
-Pascal](https://www.freepascal.org/), including Object Pascal. It uses
-[CodeTools](https://wiki.lazarus.freepascal.org/Codetools) from
-Lazarus as backend.
+  ![](images/doc/code-snippets.gif)
 
-## Freepascal Task Settings
+- **Navigation**:
+  - Use `Ctrl+Up` and `Ctrl+Down` to jump between declaration and implementation
+  - Class and function references with document outline
 
-You can add freepascal compile tasks by editing `task.json` in your .vscode folder.
+  ![](images/doc/documentsymbol.gif)
 
-The task's type is `fpc`. It contains the following configuration items.
+#### Code Quality & Formatting
+- **Syntax Highlighting**:
+  - Advanced Pascal syntax highlighting
+  - Identify compilation conditions such as `{$IFDEF} {$ELSE} {$ENDIF}`
+- **Code Formatting**:
 
-### Task settings
-Field   | type  |  Description  |
+  ![](images/doc/format.gif)
+
+  - Format source code using integrated jcf cli
+  - Uses `jcfsettings.cfg` as config, or Lazarus config if installed
+
+#### Development Productivity
+- **Quick Fixes**: Smart suggestions for common issues
+  - Quick fix for `(5025) Local variable "xxx" not used`
+
+  ![](images/doc/quickfix.gif)
+
+- **Refactoring Tools**:
+  - Auto rename symbols (functions, classes, variables, and their references)
+  - Use `Ctrl+Shift+C` to auto-implement procedures
+  - Remove unused units and clean up code
+- **Code Snippets**: Rich templates including class, if-else, begin-end, and more
+
+#### AI Integration
+- **MCP Server**: Model Context Protocol server for AI assistants
+  - Get compile commands for Pascal files
+  - Project information extraction
+  - Source file analysis
+  - Enable with `fpctoolkit.mcp.enabled` setting
+
+## Pascal Language Server
+
+Based on [pascal-language-server](https://github.com/coolchyni/pascal-language-server)
+
+An [LSP](https://microsoft.github.io/language-server-protocol/) server implementation for Pascal variants supported by [FreePascal](https://www.freepascal.org/), including Object Pascal. It uses [CodeTools](https://wiki.lazarus.freepascal.org/Codetools) from Lazarus as the backend.
+
+## FreePascal Task Settings
+
+You can add FreePascal or Lazarus compile tasks by editing `tasks.json` in your .vscode folder.
+
+The task's type is `fpc`. The following configuration options are available:
+
+### Task Settings
+Field   | Type  |  Description  |
 ------  | ----- |  :-------------
-file  | string|main program file. .lpr or .dpr
-type  | string|always be `fpc`
-cwd   | string|current path. Use wrokspace root if null.
-cleanExt|string|file extensions for clean file in unitOutputDir. use * for clear all file. default:(.o,.ppu)
-buildOption|object|build options
-inherited|string| inherit from other task
+file  | string | Free Pascal project file (.lpr, .dpr)
+type  | string | Always `fpc`
+cwd   | string | Working directory. Uses workspace root if not set.
+cleanExt | string | File extensions to clean when cleaning the project. Use `*` to clear all files. Default: (.o, .ppu, .lfm, .a, .or, .res)
+buildOption | object | Build options
+inherited | string | Inherit from another task
 
-### buildEvent
-Field  | type | Description  |
+### Build Events
+Field               | Type      | Description                                 |
+--------------------|-----------|---------------------------------------------|
+before_build        | string[]  | Commands to run before the build starts      |
+after_build_success | string[]  | Commands to run after a successful build     |
+after_build_failure | string[]  | Commands to run after a failed build         |
+
+### Build Options
+Field  | Type | Description  |
 -------| ---- |:---------------
-before_build  | string[] | Run commands before build
-after_build_success | string[]| Run commands after build success.
-after_build_failure | string []| Run commands after build failure. 
+targetOS  | string | Target OS (-T), e.g. `linux`, `win64`
+targetCPU | string | Target CPU family (-P), e.g. `x86_64`, `i386`
+customOptions | string[] | Any compile options for FPC
+libPath | string[] | Library search path (-Fl)
+outputFile | string | Target file name (-o)
+unitOutputDir | string | Unit output directory (-FU)
+optimizationLevel | number | Optimization level (-O)
+searchPath | string[] | Unit search path (-Fu)
+syntaxMode | string | Syntax mode (-M)
+forceRebuild | boolean | Re-compile all used units, even if the unit sources didn’t change since the last compilation (-B)
+msgIgnore | number[] | List of message numbers to ignore (-vmxxx)
 
-
-### buildOptions
-Field  | type | Description  |
+#### Additional Options
+Field  | Type | Description  |
 -------| ---- |:---------------
-targetOS  | string | Target OS (-T).  eg. `linux` `win64`
-targetCPU |string| Target cpu family (-P). eg. `x86_64` `i386`
-customOptions|string []| Any compile options for fpc.     
-libPath|string[]|Searchpath for libraries.(-Fl)
-outputFile| string| Target file name.(-o)
-unitOutputDir| string|Unit output directory.(-FU)
-optimizationLevel| number|Optimization levels (-O)
-searchPath| string[]|Searchpath for units and other system dependent things.(-Fu)
-syntaxMode| string|Syntax Mode (-M)
-forceRebuild| boolean|Re-compile all used units, even if the unit sources didn’t change since the last compilation.(-B)
-msgIgnore|number[]|Is a list of messages numbers which should not be shown.(-vmxxx)
+cleanExt | string | File extensions to clean when cleaning the project. Use `*` to clear all files. Default: (.o, .ppu, .lfm, .a, .or, .res)
+inherited | string | Inherit from another task
+buildEvent | object | Pre/post build event commands (e.g., `before_build`, `after_build_success`, `after_build_failure`)
 
-example:
+#### Example
 ~~~json
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "debug",
-			"file": "main.lpr",
-			"type": "fpc",
-			"buildOption": {
-				"unitOutputDir": "./out",
-				"customOptions": [
-					"-dDEBUG",
-					"-gw2"
-				]
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "debug",
+      "file": "main.lpr",
+      "type": "fpc",
+      "buildOption": {
+        "unitOutputDir": "./out",
+        "customOptions": [
+          "-dDEBUG",
+          "-gw2"
+        ]
+      }
+    }
+  ]
 }
 ~~~
 
+## Extension Configuration
+
+For detailed extension configuration options, see:
+- [Configuration Guide](CONFIGURATION.md) (English)
+- [配置指南](CONFIGURATION_CN.md) (中文)
+
 # Thanks
-## HighLight
+## Syntax Highlighting
 
-Syntaxes from https://github.com/maresmar/ST-Pascal
+Syntax files from https://github.com/maresmar/ST-Pascal
 
-## Format
+## Formatter
 
-Clone and modified from  https://github.com/git-bee/jcf-cli
+Modified from https://github.com/git-bee/jcf-cli
 
 ## Pascal-language-server
 
-Clone and modified from 
-https://github.com/genericptr/pascal-language-server 
+Modified from:
+https://github.com/genericptr/pascal-language-server
 https://github.com/arjanadriaanse/pascal-language-server
 
 # Release Notes
 
-[view changelog](CHANGELOG.md)
-
-
+[View changelog](CHANGELOG.md)

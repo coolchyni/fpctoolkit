@@ -8,3 +8,5 @@ src
 **/.eslintrc.json
 **/*.map
 **/*.ts
+.kiro
+scripts
