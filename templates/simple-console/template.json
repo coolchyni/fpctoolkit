@@ -4,7 +4,7 @@
   "files": [
     {
       "source": "main.lpr",
-      "target": "main.lpr",
+      "target": "{{PROJECT_NAME}}.lpr",
       "cursorPosition": { "line": 8, "column": 4 }
     },
     {
@@ -15,7 +15,7 @@
   "tasks": [
     {
       "label": "debug",
-      "file": "main.lpr",
+      "file": "{{PROJECT_NAME}}.lpr",
       "type": "fpc",
       "presentation": {
         "showReuseMessage": false,
@@ -29,7 +29,7 @@
     },
     {
       "label": "release",
-      "file": "main.lpr",
+      "file": "{{PROJECT_NAME}}.lpr",
       "type": "fpc",
       "presentation": {
         "showReuseMessage": false,

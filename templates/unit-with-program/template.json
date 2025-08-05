@@ -4,12 +4,12 @@
   "files": [
     {
       "source": "main.lpr",
-      "target": "main.lpr",
+      "target": "{{PROJECT_NAME}}.lpr",
       "cursorPosition": { "line": 9, "column": 4 }
     },
     {
       "source": "myunit.pas",
-      "target": "myunit.pas"
+      "target": "{{PROJECT_NAME}}unit.pas"
     },
     {
       "source": "README.md",
@@ -19,7 +19,7 @@
   "tasks": [
     {
       "label": "debug",
-      "file": "main.lpr",
+      "file": "{{PROJECT_NAME}}.lpr",
       "type": "fpc",
       "presentation": {
         "showReuseMessage": false,
@@ -29,6 +29,20 @@
       "buildOption": {
         "unitOutputDir": "./out",
         "customOptions": ["-dDEBUG", "-gw2"]
+      }
+    },
+    {
+      "label": "release",
+      "file": "{{PROJECT_NAME}}.lpr",
+      "type": "fpc",
+      "presentation": {
+        "showReuseMessage": false,
+        "clear": true,
+        "revealProblems": "onProblem"
+      },
+      "buildOption": {
+        "unitOutputDir": "./out",
+        "customOptions": ["-dRELEASE", "-O2"]
       }
     }
   ]

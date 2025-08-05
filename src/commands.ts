@@ -38,6 +38,8 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newproject', this.ProjectNew));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.newfromtemplate', this.NewProjectFromTemplate));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.inittemplatedir', this.InitializeTemplateDirectory));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.inittemplatedirtouser', this.InitializeTemplateDirectoryToUser));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.opentemplatedir', this.OpenTemplateDirectory));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.openWithLazarus', this.openWithLazarus));
@@ -303,7 +305,25 @@ export class FpcCommandManager {
         });
 
         if (selected) {
-            await this.templateManager.createProjectFromTemplate(selected.template);
+            // 询问项目名称
+            const projectName = await vscode.window.showInputBox({
+                prompt: 'Enter project name',
+                value: 'newproject',
+                validateInput: (value: string) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Project name cannot be empty';
+                    }
+                    // 检查是否包含非法字符
+                    if (!/^[a-zA-Z0-9_-]+$/.test(value.trim())) {
+                        return 'Project name can only contain letters, numbers, underscores and hyphens';
+                    }
+                    return null;
+                }
+            });
+
+            if (projectName) {
+                await this.templateManager.createProjectFromTemplate(selected.template, projectName.trim());
+            }
         }
     }
 
@@ -313,10 +333,27 @@ export class FpcCommandManager {
 
     InitializeTemplateDirectory = async () => {
         try {
-            await this.templateManager.initializeDefaultTemplates();
+            await this.templateManager.initializeDefaultTemplates(false);
             vscode.window.showInformationMessage('Template directory initialized successfully!');
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to initialize template directory: ${error}`);
+        }
+    };
+
+    InitializeTemplateDirectoryToUser = async () => {
+        try {
+            await this.templateManager.initializeDefaultTemplates(true);
+            vscode.window.showInformationMessage('User template directory initialized successfully!');
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to initialize user template directory: ${error}`);
+        }
+    };
+
+    OpenTemplateDirectory = async () => {
+        try {
+            await this.templateManager.openTemplateDirectory();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open template directory: ${error}`);
         }
     };
 

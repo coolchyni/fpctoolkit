@@ -1,11 +1,11 @@
-program main;
+program {{PROJECT_NAME}};
 {$mode objfpc}{$H+}
 
 uses
   Classes, SysUtils;
 
 begin
-  WriteLn('Hello from Simple Console App!');
+  WriteLn('Hello from {{PROJECT_NAME}}!');
   WriteLn('Created on: {{DATE}} at {{TIME}}');
   WriteLn('Author: {{USER}}');
   

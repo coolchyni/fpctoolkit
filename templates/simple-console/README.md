@@ -1,10 +1,10 @@
-# Simple Console Application
+# {{PROJECT_NAME}}
 
 Created on {{DATE}} by {{USER}}
 
 ## Description
 
-This is a simple console application template that demonstrates:
+This is the {{PROJECT_NAME}} console application created from template. It demonstrates:
 - Basic Pascal program structure
 - Console output using WriteLn
 - Template variable substitution
@@ -20,11 +20,12 @@ This is a simple console application template that demonstrates:
 ## How to Run
 
 After building, you can run the executable:
-- On Windows: `out\main.exe`
-- On Linux/macOS: `out/main`
+- On Windows: `out\{{PROJECT_NAME}}.exe`
+- On Linux/macOS: `out/{{PROJECT_NAME}}`
 
 ## Template Variables Used
 
+- `{{PROJECT_NAME}}`: Name of the project
 - `{{DATE}}`: Current date when project was created
 - `{{TIME}}`: Current time when project was created  
 - `{{USER}}`: Username of the person who created the project

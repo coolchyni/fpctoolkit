@@ -137,6 +137,16 @@
         "command": "fpctoolkit.project.inittemplatedir",
         "title": "%project.inittemplatedir%",
         "icon": "$(folder-library)"
+      },
+      {
+        "command": "fpctoolkit.project.inittemplatedirtouser",
+        "title": "%project.inittemplatedirtouser%",
+        "icon": "$(home)"
+      },
+      {
+        "command": "fpctoolkit.project.opentemplatedir",
+        "title": "%project.opentemplatedir%",
+        "icon": "$(folder-opened)"
       }
     ],
     "keybindings": [
@@ -376,6 +386,21 @@
           "when": "view == FpcProjectExplorer",
           "group": "navigation",
           "icon": "$(add)"
+        },
+        {
+          "command": "fpctoolkit.project.opentemplatedir",
+          "when": "view == FpcProjectExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "fpctoolkit.project.inittemplatedir",
+          "when": "view == FpcProjectExplorer",
+          "group": "1_template"
+        },
+        {
+          "command": "fpctoolkit.project.inittemplatedirtouser",
+          "when": "view == FpcProjectExplorer",
+          "group": "2_template"
         }
       ]
     },

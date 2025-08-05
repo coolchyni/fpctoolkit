@@ -1,12 +1,12 @@
-program main;
+program {{PROJECT_NAME}};
 {$mode objfpc}{$H+}
 
 uses
   Classes, SysUtils,
-  myunit;
+  {{PROJECT_NAME}}unit;
 
 begin
-  WriteLn('Program with Unit Example');
+  WriteLn('{{PROJECT_NAME}} - Program with Unit Example');
   WriteLn('Created by {{USER}} on {{DATE}}');
   
   // Call function from our unit

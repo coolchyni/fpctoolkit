@@ -59,6 +59,8 @@
     "config.mcp.port": "MCP服务器端口 (0表示自动分配)",
     "config.mcp.host": "MCP服务器主机地址",
     "project.newfromtemplate": "从模板创建新项目",
-    "project.inittemplatedir": "初始化模板目录",
+    "project.inittemplatedir": "初始化模板目录到工作区",
+    "project.inittemplatedirtouser": "初始化模板目录到用户空间",
+    "project.opentemplatedir": "打开模板目录",
     "config.project.templateDirectories": "搜索项目模板的自定义目录。可以是绝对路径或相对于工作区根目录的路径。"
 }

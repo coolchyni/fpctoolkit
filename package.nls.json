@@ -59,6 +59,8 @@
     "config.mcp.port": "MCP server port (0 means auto-assign)",
     "config.mcp.host": "MCP server host address",
     "project.newfromtemplate": "New Project from Template",
-    "project.inittemplatedir": "Initialize Template Directory",
+    "project.inittemplatedir": "Initialize Template Directory to Workspace",
+    "project.inittemplatedirtouser": "Initialize Template Directory to User Space",
+    "project.opentemplatedir": "Open Template Directory",
     "config.project.templateDirectories": "Custom directories to search for project templates. Can be absolute paths or relative to workspace root."
 }
