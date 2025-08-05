@@ -3,6 +3,7 @@
     "project.rebuild": "清理和构建",
 	"project.clear": "清理项目",
     "project.open":  "打开",
+    "project.newproject": "创建新项目",
     "project.newconfig": "创建新的配置",
     "project.setdefault": "设置为默认任务",
     "task.file": "Free Pascal 项目文件. (.lpr,.dpr)",

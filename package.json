@@ -39,7 +39,7 @@
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
-        "id": "pascal-mcp-server", 
+        "id": "pascal-mcp-server",
         "label": "Pascal MCP Server"
       }
     ],
@@ -95,7 +95,8 @@
     "commands": [
       {
         "command": "fpctoolkit.project.newproject",
-        "title": "Create new Fpc Project"
+        "title": "%project.newproject%",
+        "icon": "$(add)"
       },
       {
         "command": "fpctoolkit.project.build",
@@ -357,6 +358,14 @@
           "command": "fpctoolkit.project.build",
           "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "inline"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "fpctoolkit.project.newproject",
+          "when": "view == FpcProjectExplorer",
+          "group": "navigation",
+          "icon": "$(add)"
         }
       ]
     },

@@ -3,6 +3,7 @@
     "project.rebuild": "Clean and Build",
 	"project.clear": "Clean Project",
     "project.open":  "Open",
+    "project.newproject": "Create New Project",
     "project.newconfig": "Create New Configuration",
     "project.setdefault": "Set as Default Task",
     "task.file": "Free Pascal project file. (.lpr,.dpr)",
