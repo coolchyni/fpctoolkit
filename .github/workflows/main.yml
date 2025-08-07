@@ -48,6 +48,15 @@ jobs:
           vsce package
           echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
 
+      - name: Get commit message for release body
+        id: commit_message
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s%n%n%b" $TAG_NAME)
+          echo "commit_message<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Delete existing release (if exists)
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
@@ -71,6 +80,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
+          body: ${{ steps.commit_message.outputs.commit_message }}
           draft: false
           prerelease: false
 
