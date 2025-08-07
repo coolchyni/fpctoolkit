@@ -2,7 +2,7 @@
   "name": "fpctoolkit",
   "displayName": "FreePascal Toolkit",
   "description": "Free pascal compile and build.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "engines": {
     "vscode": "^1.89.0"
   },

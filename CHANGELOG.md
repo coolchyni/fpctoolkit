@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.2.1] - 2025-08-15
+### add:
+- Support for use lazbuild in Lazarus projects
+
 ## [1.2.0] - 2025-08-07
 ### add:
 - Using lazarus project files (.lpr, .lpi) for build tasks
