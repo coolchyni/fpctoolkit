@@ -11,6 +11,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
   
+permissions:
+  contents: write
+  
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -73,26 +76,16 @@ jobs:
           fi
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: ${{ steps.commit_message.outputs.commit_message }}
+          files: ${{ steps.asset.outputs.vsix_path }}
           draft: false
           prerelease: false
-
-      - name: Upload .vsix file to Github as release asset
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.asset.outputs.vsix_path }}
-          asset_name: ${{ steps.asset.outputs.vsix_path }}
-          asset_content_type: application/zip
 
 
       - name: Publish
