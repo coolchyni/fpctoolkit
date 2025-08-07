@@ -460,7 +460,12 @@ end.`,
             }
 
             const dirUri = vscode.Uri.file(dirPath);
-            await vscode.commands.executeCommand('revealFileInOS', dirUri);
+            const success = await vscode.env.openExternal(dirUri);
+            
+            if (!success) {
+                // Fallback to revealFileInOS if openExternal fails
+                await vscode.commands.executeCommand('revealFileInOS', dirUri);
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to open directory: ${error}`);
         }

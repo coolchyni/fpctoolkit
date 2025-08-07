@@ -12,12 +12,14 @@ import { taskProvider } from '../providers/task';
 import { ProjectType } from '../providers/projectType';
 import { FpcItem } from '../providers/fpcItem';
 import { FpcTask } from "../providers/fpcTaskProject";
+import { ProjectTemplateManager, ProjectTemplate } from '../providers/projectTemplate';
 
 export class PascalMcpServer {
     private server: McpServer;
     private transport: StreamableHTTPServerTransport | null = null;
     private httpServer: http.Server | null = null;
     private projectProvider: FpcProjectProvider | null = null;
+    private templateManager: ProjectTemplateManager;
     private workspaceRoot: string;
     private port: number = 0; // 0 means auto-assign
     private host: string = 'localhost';
@@ -25,6 +27,7 @@ export class PascalMcpServer {
     constructor(workspaceRoot: string, projectProvider?: FpcProjectProvider, port?: number, host?: string) {
         this.workspaceRoot = workspaceRoot;
         this.projectProvider = projectProvider || null;
+        this.templateManager = new ProjectTemplateManager(workspaceRoot);
         this.port = port || 0; // Use 0 to let system auto-assign available port
         this.host = host || 'localhost';
         
@@ -82,35 +85,6 @@ export class PascalMcpServer {
                 }
             }
         );
-        
-        // // Register the get_project_info tool
-        // this.server.tool(
-        //     "get_project_info",
-        //     "Get information about the current Pascal project",
-        //     {},
-        //     async () => {
-        //         try {
-        //             const projectInfo = await this.getProjectInfo();
-        //             return {
-        //                 content: [
-        //                     {
-        //                         type: "text",
-        //                         text: JSON.stringify(projectInfo, null, 2)
-        //                     }
-        //                 ]
-        //             };
-        //         } catch (error) {
-        //             return {
-        //                 content: [
-        //                     {
-        //                         type: "text",
-        //                         text: `Error getting project information: ${error instanceof Error ? error.message : 'Unknown error'}`
-        //                     }
-        //                 ]
-        //             };
-        //         }
-        //     }
-        // );
 
         // Register the compile_project tool
         this.server.tool(
@@ -134,6 +108,70 @@ export class PascalMcpServer {
                             {
                                 type: "text",
                                 text: `Error compiling project: ${error instanceof Error ? error.message : 'Unknown error'}`
+                            }
+                        ]
+                    };
+                }
+            }
+        );
+
+        // Register the get_project_templates tool
+        this.server.tool(
+            "getProjectTemplates",
+            "Get list of available Pascal project templates",
+            {},
+            async () => {
+                try {
+                    const templates = await this.getProjectTemplates();
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: JSON.stringify(templates, null, 2)
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Error getting project templates: ${error instanceof Error ? error.message : 'Unknown error'}`
+                            }
+                        ]
+                    };
+                }
+            }
+        );
+
+        // Register the create_project tool
+        this.server.tool(
+            "createProject",
+            "Create a new Pascal project from a template. Use getProjectTemplates tool first to get available template names.",
+            {
+                templateName: z.string().describe("Name of the template to use (get available names from getProjectTemplates tool)"),
+                projectName: z.string().describe("Name for the new project (should be in English, no spaces or special characters)")
+            },
+            async ({ templateName, projectName }) => {
+                try {
+                    const result = await this.createProjectFromTemplate(
+                        templateName as string,
+                        projectName as string
+                    );
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: result
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Error creating project: ${error instanceof Error ? error.message : 'Unknown error'}`
                             }
                         ]
                     };
@@ -422,6 +460,96 @@ export class PascalMcpServer {
         const compileCommand = `${fpcPath} ${optionString} ${compileOption.file}`;
 
         return compileCommand.trim();
+    }
+    
+    /**
+     * Get list of available project templates
+     */
+    private async getProjectTemplates(): Promise<any> {
+        try {
+            const templates = await this.templateManager.getAvailableTemplates();
+            
+            // Convert templates to a simplified format with only name and description
+            const templateList = templates.map(template => ({
+                name: template.name,
+                description: template.description
+            }));
+
+            return {
+                count: templateList.length,
+                templates: templateList,
+                hint: "Use createProject tool to create a new project from any of these templates"
+            };
+        } catch (error) {
+            console.error('Error getting project templates:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Create a new project from template
+     */
+    private async createProjectFromTemplate(templateName: string, projectName: string, projectPath?: string): Promise<string> {
+        try {
+            if (!templateName) {
+                throw new Error("Template name is required");
+            }
+            
+            if (!projectName) {
+                throw new Error("Project name is required");
+            }
+
+            // Get available templates
+            const templates = await this.templateManager.getAvailableTemplates();
+            
+            // Find the specified template
+            const template = templates.find(t => t.name === templateName);
+            if (!template) {
+                const availableNames = templates.map(t => t.name).join(', ');
+                throw new Error(`Template "${templateName}" not found. Available templates: ${availableNames}`);
+            }
+
+            // Determine target directory
+            let targetDir = this.workspaceRoot;
+            if (projectPath) {
+                if (path.isAbsolute(projectPath)) {
+                    targetDir = projectPath;
+                } else {
+                    targetDir = path.join(this.workspaceRoot, projectPath);
+                }
+            }
+
+            // Create the project
+            await this.templateManager.createProjectFromTemplate(template, projectName, targetDir);
+
+            const createdFiles = template.files?.map(f => f.path) || [];
+            
+            let result = `✅ Project "${projectName}" created successfully from template "${templateName}"`;
+            result += `\n📁 Location: ${targetDir}`;
+            result += `\n📄 Files created: ${createdFiles.length}`;
+            
+            if (createdFiles.length > 0) {
+                result += `\n   - ${createdFiles.join('\n   - ')}`;
+            }
+
+            if (template.tasks && template.tasks.length > 0) {
+                result += `\n⚙️  Tasks configured: ${template.tasks.length}`;
+            }
+
+            // Refresh project provider if available
+            if (this.projectProvider) {
+                try {
+                    await this.projectProvider.refresh();
+                } catch (error) {
+                    console.error('Error refreshing project provider:', error);
+                }
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Error creating project from template:', error);
+            throw error;
+        }
     }
     
     /**

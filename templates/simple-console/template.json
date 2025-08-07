@@ -6,10 +6,6 @@
       "source": "main.lpr",
       "target": "{{PROJECT_NAME}}.lpr",
       "cursorPosition": { "line": 8, "column": 4 }
-    },
-    {
-      "source": "README.md",
-      "target": "README.md"
     }
   ],
   "tasks": [
