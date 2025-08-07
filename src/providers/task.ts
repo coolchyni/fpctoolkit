@@ -281,7 +281,8 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 	protected errbuf: string = "";
 
 	private diagMaps: Map<string, vscode.Diagnostic[]>;
-	public args: string[] = [];
+	   public args: string[] = [];
+	   reason: vscode.TerminalExitReason = vscode.TerminalExitReason.Unknown;
 
 	constructor(private cwd: string, private fpcpath: string) {
 		this.diagMaps = new Map<string, vscode.Diagnostic[]>();
@@ -389,10 +390,43 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 
 	private async doBuild(): Promise<number> {
 		return new Promise<number>((resolve) => {
-
 			this.buffer = "";
 			this.errbuf = "";
 			this.diagMaps.clear();
+
+			// === 新增：编译前创建输出目录 ===
+			// 从参数中提取 -o 和 -FU 的路径，进行目录创建
+			const outputFileArg = this.args.find(arg => arg.startsWith('-o'));
+			if (outputFileArg) {
+				let outfile = outputFileArg.substring(2).trim();
+				if (outfile.startsWith('.')) {
+					outfile = path.join(this.cwd, outfile);
+				}
+				const dir = path.dirname(outfile);
+				if (!fs.existsSync(dir)) {
+					try {
+						fs.mkdirSync(dir, { recursive: true });
+					} catch (error) {
+						vscode.window.showErrorMessage("Can't create output directory.(" + dir + ")");
+					}
+				}
+			}
+			const unitOutputDirArg = this.args.find(arg => arg.startsWith('-FU'));
+			if (unitOutputDirArg) {
+				let dir = unitOutputDirArg.substring(3).trim();
+				if (dir.startsWith('.')) {
+					dir = path.join(this.cwd, dir);
+				}
+				if (!fs.existsSync(dir)) {
+					try {
+						fs.mkdirSync(dir, { recursive: true });
+					} catch (error) {
+						vscode.window.showErrorMessage("Can't create unit output directory.(" + dir + ")");
+					}
+				}
+			}
+			// === 结束 ===
+
 			if(this.event_before_build){
 				this.event_before_build();
 			}
@@ -402,20 +436,21 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 			this.process.stdout?.on('data', this.stdout.bind(this));
 			this.process.stderr?.on('data', this.stderr.bind(this));
 			this.process.on('close', (code) => {
-
 				this.writeEmitter.fire(`Exited with code ${code}.\r\nBuild complete. \r\n\r\n`);
+				// 设置 reason
+				if (code === 0) {
+					this.reason = vscode.TerminalExitReason.User;
+				} else {
+					this.reason = vscode.TerminalExitReason.Unknown;
+				}
 				this.buildend().then(() => {
 					this.closeEmitter.fire(code);
 				});
 				if(this.event_after_build){
 					this.event_after_build(code==0);
 				}
-				//This is a exitcode,not zero meens failure.
-
-
 				resolve(0);
 			});
-
 		});
 	}
 

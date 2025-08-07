@@ -92,19 +92,6 @@ export class CompileOption {
             s+='-vm'+this.buildOption.msgIgnore.join(',')+' ';
         }
         if (this.buildOption?.outputFile) {
-            let outfile = this.buildOption!.outputFile;
-            if (outfile.startsWith(".")) {
-                outfile = path.join(vscode.workspace.workspaceFolders![0].uri.fsPath, outfile);
-            }
-            let dir = path.dirname(outfile);
-            if (!fs.existsSync(dir)) {
-                try {
-                    fs.mkdirSync(dir, { recursive: true });
-                } catch (error) {
-                    vscode.window.showErrorMessage("Can't create output directory.(" + dir + ")");
-                }
-
-            }
             s += "-o" + this.buildOption!.outputFile + " ";
         }
 
@@ -124,20 +111,6 @@ export class CompileOption {
         });
 
         if (this.buildOption?.unitOutputDir) {
-            let dir = this.buildOption!.unitOutputDir;
-
-            if (dir.startsWith(".")) {
-                dir = path.join(vscode.workspace.workspaceFolders![0].uri.fsPath, dir);
-            }
-
-            if (!fs.existsSync(dir)) {
-                try {
-                    fs.mkdirSync(dir, { recursive: true });
-                } catch (error) {
-                    vscode.window.showErrorMessage("Can't create unit output directory.(" + dir + ")");
-                }
-
-            }
             s += "-FU" + this.buildOption!.unitOutputDir + " ";
         }
 
