@@ -15,6 +15,7 @@ For Chinese documentation, see [中文文档](README_CN.md).
 
 ### Core Features
 - **Project Management** - Build, rebuild, and clean FreePascal and Lazarus programs
+- **Project Templates** - Create new projects from built-in or custom templates with variable substitution
 - **Lazarus LPI Support** - Full project file support with multi-mode build management
 - **Advanced Build System** - Customizable tasks with inheritance and cross-platform compilation
 - **Code Intelligence** - Auto-completion, go-to-definition, and symbol references
@@ -28,6 +29,11 @@ For Chinese documentation, see [中文文档](README_CN.md).
 ### Detailed Feature Overview
 
 #### Project & Build Management
+- **Project Templates**: Template-based project creation system
+  - Built-in templates for console applications and modular programs
+  - Custom template support with variable substitution (date, time, username, project name)
+  - Multi-file templates with pre-configured build tasks
+  - Template initialization and management commands
 - **Lazarus LPI Project Support**: Automatically detects and parses `.lpi` project files, extracts all build modes, and supports multi-mode build management
 - **Advanced Task System**:
   - Customize build tasks with inheritance
@@ -69,6 +75,28 @@ For Chinese documentation, see [中文文档](README_CN.md).
   - Use `Ctrl+Shift+C` to auto-implement procedures
   - Remove unused units and clean up code
 - **Code Snippets**: Rich templates including class, if-else, begin-end, and more
+
+### Project Templates
+
+Create new Pascal projects quickly using built-in or custom templates:
+
+#### Built-in Templates
+- **Simple Console App**: Basic console application with greeting message
+- **Program with Unit**: Demonstrates modular programming with separate unit files
+
+#### Template Features
+- **Variable Substitution**: Automatic replacement of `{{DATE}}`, `{{TIME}}`, `{{USER}}`, `{{PROJECT_NAME}}`
+- **Multi-file Support**: Templates can include multiple source files, documentation, and configuration
+- **Pre-configured Tasks**: Templates include debug and release build configurations
+- **Custom Templates**: Create your own templates in the `templates/` directory
+
+#### Usage
+1. Click the "+" button in FPC Projects view or use `Ctrl+Shift+P` → "FpcToolkit: Create New Project"
+2. Select from available templates
+3. Project files are created with variables automatically replaced
+4. Build tasks are configured and ready to use
+
+For detailed template creation and customization, see the [Template Guide](doc/en/TEMPLATE_GUIDE.md).
 
 #### AI Integration
 - **MCP Server**: Model Context Protocol server for AI assistants
@@ -149,11 +177,11 @@ buildEvent | object | Pre/post build event commands (e.g., `before_build`, `afte
 }
 ~~~
 
-## Extension Configuration
+## Documentation
 
-For detailed extension configuration options, see:
-- [Configuration Guide](CONFIGURATION.md) (English)
-- [配置指南](CONFIGURATION_CN.md) (中文)
+For detailed documentation, see:
+- [Configuration Guide](doc/en/CONFIGURATION.md) (English) / [配置指南](doc/cn/CONFIGURATION.md) (中文)
+- [Template Guide](doc/en/TEMPLATE_GUIDE.md) (English) / [模板指南](doc/cn/TEMPLATE_GUIDE.md) (中文)
 
 # Thanks
 ## Syntax Highlighting

@@ -101,20 +101,21 @@ templates/
 - `{{MONTH}}`: 当前月份 (两位数)
 - `{{DAY}}`: 当前日期 (两位数)
 - `{{USER}}`: 当前用户名
+- `{{PROJECT_NAME}}`: 项目名称
 
 ### 示例模板文件
 
-### 简单控制台应用 (templates/simple-console/main.lpr)
+#### 简单控制台应用 (templates/simple-console/main.lpr)
 
 ```pascal
-program main;
+program {{PROJECT_NAME}};
 {$mode objfpc}{$H+}
 
 uses
   Classes, SysUtils;
 
 begin
-  WriteLn('Hello from Simple Console App!');
+  WriteLn('Hello from {{PROJECT_NAME}}!');
   WriteLn('Created on: {{DATE}} at {{TIME}}');
   WriteLn('Author: {{USER}}');
   
@@ -125,15 +126,15 @@ begin
 end.
 ```
 
-### 带单元的程序 (templates/unit-with-program/main.lpr)
+#### 带单元的程序 (templates/unit-with-program/main.lpr)
 
 ```pascal
-program main;
+program {{PROJECT_NAME}};
 {$mode objfpc}{$H+}
 
 uses
   Classes, SysUtils,
-  myunit;
+  {{PROJECT_NAME}}unit;
 
 begin
   WriteLn('Program with Unit Example');
@@ -149,10 +150,10 @@ begin
 end.
 ```
 
-### 自定义单元文件 (templates/unit-with-program/myunit.pas)
+#### 自定义单元文件 (templates/unit-with-program/myunit.pas)
 
 ```pascal
-unit myunit;
+unit {{PROJECT_NAME}}unit;
 {$mode objfpc}{$H+}
 
 interface
@@ -238,8 +239,8 @@ end.
 - 检查 tasks.json 语法
 - 确认构建选项正确
 - 验证文件路径引用
-##
- 测试新功能
+
+## 测试新功能
 
 ### 测试步骤
 

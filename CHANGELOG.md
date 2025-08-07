@@ -1,7 +1,10 @@
 ## [Unreleased]
-## [1.2.0] - 2025-07-23
+
+## [1.2.0] - 2025-08-07
 ### add:
 - Using lazarus project files (.lpr, .lpi) for build tasks
+- Support custom templates for creating new projects
+- MCP server for AI assistants
 
 ## [1.1.9] - 2022-12-17
 ### add:
