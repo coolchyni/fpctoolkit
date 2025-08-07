@@ -1,0 +1,28 @@
+# This workflow packages the VS Code extension into a .vsix file on every push to master, but does not upload or publish it.
+
+name: Package VSIX on Push to Master
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+      - name: Install dependencies
+        run: npm i
+      - name: Install vsce
+        run: npm i -g vsce
+      - name: Install esbuild
+        run: npm i -g esbuild
+      - name: Build with esbuild
+        run: esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node
+      - name: Package Extension into .vsix file
+        run: vsce package
