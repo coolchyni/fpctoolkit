@@ -252,22 +252,21 @@ export class LazarusBuildModeTask implements IProjectTask {
         const projectFile = (this.project as LazarusProject).mainFile || '';
         const projectName = projectFile.replace(/\.(lpr|lpi)$/i, '');
         
+        // Create a build mode object for variable substitution
+        const buildModeForSubstitution = {
+            targetOS: this.targetOS,
+            targetCPU: this.targetCPU,
+            name: this.buildMode
+        };
+        
         LazarusVariableSubstitution.initialize(
-            null, // We don't need full buildMode object since we have specific targetOS/targetCPU
+            buildModeForSubstitution as any, // Pass build mode info for variable substitution
             workspaceRoot,
             projectName,
             projectFile,
             this.targetFile, // Use target file extracted from build mode
             this.outputDirectory
         );
-        
-        // Manually set target platform variables
-        if (this.targetOS) {
-            LazarusVariableSubstitution.setVariable('TargetOS', this.targetOS);
-        }
-        if (this.targetCPU) {
-            LazarusVariableSubstitution.setVariable('TargetCPU', this.targetCPU);
-        }
         
         // Create build option
         const buildOption = new BuildOption();
@@ -383,6 +382,11 @@ export class LazarusBuildModeTask implements IProjectTask {
         
         // Create task definition
         const taskDef = this.createTaskDefinition(workspaceRoot);
+        
+        // Add build mode information to task definition for Lazarus compilation
+        (taskDef as any).buildMode = this.buildMode;
+        (taskDef as any).isLazarusProject = true;
+        (taskDef as any).lazarusProjectFile = this.project.file;
         
         // Get task from taskProvider
         const { taskProvider } = require('./task');

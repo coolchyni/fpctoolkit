@@ -62,5 +62,6 @@
     "project.inittemplatedir": "Initialize Template Directory to Workspace",
     "project.inittemplatedirtouser": "Initialize Template Directory to User Space",
     "project.opentemplatedir": "Open Template Directory",
-    "config.project.templateDirectories": "Custom directories to search for project templates. Can be absolute paths or relative to workspace root."
+    "config.project.templateDirectories": "Custom directories to search for project templates. Can be absolute paths or relative to workspace root.",
+    "config.lazarus.preferLazbuild": "Prefer lazbuild over fpc for compiling Lazarus projects when available"
 }

@@ -165,6 +165,7 @@ msgIgnore|number[]|指定编译时哪些消息不需要显示.(-vmxxx)
 详细文档请参阅：
 - [配置指南](doc/cn/CONFIGURATION.md) (中文) / [Configuration Guide](doc/en/CONFIGURATION.md) (English)
 - [模板指南](doc/cn/TEMPLATE_GUIDE.md) (中文) / [Template Guide](doc/en/TEMPLATE_GUIDE.md) (English)
+- [Lazbuild 使用指南](doc/cn/LAZBUILD_USAGE.md) (中文) / [Lazbuild Usage Guide](doc/en/LAZBUILD_USAGE.md) (English)
 
 # 致谢
 ## 语法高亮

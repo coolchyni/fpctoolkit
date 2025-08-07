@@ -16,7 +16,7 @@ For Chinese documentation, see [中文文档](README_CN.md).
 ### Core Features
 - **Project Management** - Build, rebuild, and clean FreePascal and Lazarus programs
 - **Project Templates** - Create new projects from built-in or custom templates with variable substitution
-- **Lazarus LPI Support** - Full project file support with multi-mode build management
+- **Lazarus LPI Support** - Full project file support with multi-mode build management and lazbuild integration
 - **Advanced Build System** - Customizable tasks with inheritance and cross-platform compilation
 - **Code Intelligence** - Auto-completion, go-to-definition, and symbol references
 - **Code Snippets** - Rich templates for rapid development
@@ -34,7 +34,7 @@ For Chinese documentation, see [中文文档](README_CN.md).
   - Custom template support with variable substitution (date, time, username, project name)
   - Multi-file templates with pre-configured build tasks
   - Template initialization and management commands
-- **Lazarus LPI Project Support**: Automatically detects and parses `.lpi` project files, extracts all build modes, and supports multi-mode build management
+- **Lazarus LPI Project Support**: Automatically detects and parses `.lpi` project files, extracts all build modes, and supports multi-mode build management with intelligent compiler selection (lazbuild preferred, fpc fallback)
 - **Advanced Task System**:
   - Customize build tasks with inheritance
   - Support for custom build options (target platform/CPU, output directory, compiler flags, etc.)
@@ -182,6 +182,7 @@ buildEvent | object | Pre/post build event commands (e.g., `before_build`, `afte
 For detailed documentation, see:
 - [Configuration Guide](doc/en/CONFIGURATION.md) (English) / [配置指南](doc/cn/CONFIGURATION.md) (中文)
 - [Template Guide](doc/en/TEMPLATE_GUIDE.md) (English) / [模板指南](doc/cn/TEMPLATE_GUIDE.md) (中文)
+- [Lazbuild Usage Guide](doc/en/LAZBUILD_USAGE.md) (English) / [Lazbuild 使用指南](doc/cn/LAZBUILD_USAGE.md) (中文)
 
 # Thanks
 ## Syntax Highlighting

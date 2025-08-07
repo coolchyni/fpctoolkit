@@ -515,6 +515,11 @@
             },
             "default": [],
             "description": "%config.project.templateDirectories%"
+          },
+          "fpctoolkit.lazarus.preferLazbuild": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.lazarus.preferLazbuild%"
           }
         }
       },

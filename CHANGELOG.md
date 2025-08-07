@@ -5,6 +5,9 @@
 - Using lazarus project files (.lpr, .lpi) for build tasks
 - Support custom templates for creating new projects
 - MCP server for AI assistants
+- Intelligent Lazarus compilation with lazbuild preferred and fpc fallback
+- Configuration option to control lazbuild vs fpc preference
+- Automatic lazbuild detection across different platforms
 
 ## [1.1.9] - 2022-12-17
 ### add:

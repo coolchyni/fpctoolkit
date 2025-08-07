@@ -10,6 +10,7 @@ import { TerminalEscape, TE_Style } from '../common/escape';
 import * as fs from 'fs';
 import { client } from '../extension';
 import { DiagnosticSeverity } from 'vscode';
+import { LazarusBuildTerminal } from './lazarusBuildTerminal';
 
 export class BuildOption {
 	targetOS?: string;
@@ -216,7 +217,21 @@ export class FpcTask extends vscode.Task {
 					fpcpath = 'fpc';
 				}
 
-				let terminal = new FpcBuildTaskTerminal(cwd, fpcpath!);
+				// Determine if this is a Lazarus project
+				const isLazarusProject = taskDefinition?.isLazarusProject;
+				
+				let terminal: FpcBuildTaskTerminal | LazarusBuildTerminal;
+				
+				if (isLazarusProject) {
+					// Use Lazarus build terminal for .lpi/.lpr files
+					const buildMode = (taskDefinition as any).buildMode || name;
+					terminal = new LazarusBuildTerminal(cwd, fpcpath!, taskDefinition?.lazarusProjectFile, buildMode);
+					(terminal as LazarusBuildTerminal).forceRebuild = this._BuildMode === BuildMode.rebuild;
+				} else {
+					// Use standard FPC terminal for other files
+					terminal = new FpcBuildTaskTerminal(cwd, fpcpath!);
+				}
+				
 				if(taskDefinition.buildEvent){
 					if(taskDefinition.buildEvent.before_build){
 						let commands=taskDefinition.buildEvent.before_build;
@@ -248,9 +263,16 @@ export class FpcTask extends vscode.Task {
 
 				}
 				
-				terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
-				if (this._BuildMode == BuildMode.rebuild) {
-					terminal.args.push('-B');
+				// Set arguments based on terminal type
+				if (terminal instanceof LazarusBuildTerminal) {
+					// For Lazarus projects, the terminal handles compilation strategy internally
+					terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+				} else {
+					// For FPC projects, use traditional approach
+					terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+					if (this._BuildMode == BuildMode.rebuild) {
+						terminal.args.push('-B');
+					}
 				}
 				return terminal;
 
