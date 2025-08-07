@@ -1,11 +1,9 @@
-# This workflow packages the VS Code extension into a .vsix file on every push to master, but does not upload or publish it.
+# This workflow packages the VS Code extension into a .vsix file manually, but does not upload or publish it.
 
-name: Package VSIX on Push to Master
+name: Package VSIX Manually
 
 on:
-  push:
-    branches:
-      - master
+  workflow_dispatch:
 
 jobs:
   package:

@@ -4,9 +4,9 @@ name: Publish FpcToolKit
 
 # Controls when the workflow will run
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - '*'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -48,7 +48,22 @@ jobs:
           vsce package
           echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
 
-      - name: Create Release (if needed)
+      - name: Delete existing release (if exists)
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME" \
+            | jq -r '.id // empty')
+          
+          if [ ! -z "$RELEASE_ID" ]; then
+            echo "Deleting existing release with ID: $RELEASE_ID"
+            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+          else
+            echo "No existing release found for tag: $TAG_NAME"
+          fi
+
+      - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -58,23 +73,13 @@ jobs:
           release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-        if: github.event.release == null
-
-      - name: Set upload_url
-        id: set_upload_url
-        run: |
-          if [ "${{ github.event.release.upload_url }}" != "" ]; then
-            echo "upload_url=${{ github.event.release.upload_url }}" >> $GITHUB_OUTPUT
-          else
-            echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_OUTPUT
-          fi
 
       - name: Upload .vsix file to Github as release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.set_upload_url.outputs.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.asset.outputs.vsix_path }}
           asset_name: ${{ steps.asset.outputs.vsix_path }}
           asset_content_type: application/zip
