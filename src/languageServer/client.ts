@@ -53,7 +53,7 @@ interface InactiveRegionParams {
 }
 
 // Notifications from the server
-const InactiveRegionNotification: NotificationType<InactiveRegionParams> = new NotificationType<InactiveRegionParams>('pasls/inactiveRegions');
+const InactiveRegionNotification: NotificationType<InactiveRegionParams> = new NotificationType<InactiveRegionParams>('pasls.inactiveRegions');
 
 //set cursor pos
 interface SetSelectionParams {
@@ -174,8 +174,13 @@ export class TLangClient implements ErrorHandler  {
         const arch = process.arch;
         if (arch === 'x64') {
             this.targetCPU = 'x86_64';
-            if (plat === 'win32') {
-                extensionProcessName = 'win32/pasls.exe';
+            if (plat === 'win32') {            // 检查是否有调试器附加
+                if(process.env.DEBUG_MODE==='true'){
+                    logger.appendLine("Debug mode detected, using paslsproxy.exe");
+                    extensionProcessName = 'win32/paslsproxy.exe';
+                }else{
+                    extensionProcessName = 'win32/pasls.exe';
+                }
                 this.targetOS = 'win64';
             } else if (plat === 'linux') {
                 extensionProcessName = 'x86_64-linux/pasls';
@@ -198,7 +203,12 @@ export class TLangClient implements ErrorHandler  {
             }
             else if (plat == 'win32') {
                 this.targetOS = 'win32';
-                extensionProcessName = 'win32/pasls.exe';
+                if(process.env.DEBUG_MODE==='true'){
+                    logger.appendLine("Debug mode detected, using paslsproxy.exe");
+                    extensionProcessName = 'win32/paslsproxy.exe';
+                }else{
+                    extensionProcessName = 'win32/pasls.exe';
+                }
             } else {
                 throw "Invalid Platform";
             }
@@ -247,6 +257,7 @@ export class TLangClient implements ErrorHandler  {
                         });
 
                     } else {
+                        //logger.appendLine(e.message);
                         vscode.window.showErrorMessage(e.message);
                     }
 
@@ -426,37 +437,13 @@ export class TLangClient implements ErrorHandler  {
     };
 
     async doCodeComplete(editor:vscode.TextEditor): Promise<void> {
-        let sel=editor.selection.start;
         var req:ExecuteCommandParams={
-            command:"CompleteCode",
+            command:"pasls.completeCode",
             arguments:[
                 editor.document.uri.toString(),
-                sel.line.toString(),
-                sel.character.toString()
-            ]
+                editor.selection.start            ]
         };
-        let result:ExecuteCommandParams=await this.client?.sendRequest(ExecuteCommandRequest.type,req);
-
-        if(result.arguments![0]=='true'){
-
-            let newLine=Number.parseInt( result.arguments![3] );
-            let newCharacter=Number.parseInt(result.arguments![2]);
-            // let newTopLine=Number.parseInt(result.arguments![3]);
-            
-            let blocktop=Number.parseInt(result.arguments![4]);
-            if(blocktop==0)
-            {
-                return ;
-            }
-            // let blockContent=result.arguments![5];
-
-            let pos=new vscode.Position(newLine,newCharacter);
-            setTimeout(() => {
-                vscode.window.showTextDocument(editor.document,  { selection: new vscode.Selection(pos,pos) });
-            }, 200);
-            
-        }
-       
+        await this.client?.sendRequest(ExecuteCommandRequest.type,req);       
 
     }
 
