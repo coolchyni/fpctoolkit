@@ -44,7 +44,7 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.openWithLazarus', this.openWithLazarus));
 
-        //context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
+        context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
     }
 
     ProjectAdd = async (node: FpcItem) => {
@@ -510,8 +510,6 @@ export class FpcCommandManager {
     };
 
     CodeComplete = (textEditor: TextEditor, edit: TextEditorEdit) => {
-        // This method is deprecated and will be removed
-        // Code completion is now handled by the language server directly
-        vscode.commands.executeCommand('editor.action.triggerSuggest');
+        client.doCodeComplete(textEditor);
     };
 }
