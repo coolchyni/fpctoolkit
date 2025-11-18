@@ -8,6 +8,7 @@ import { match } from 'assert';
 import { disconnect } from 'process';
 import * as vscode from 'vscode';
 import { diagCollection } from '../providers/task';
+import { number } from 'zod';
 
 const COMMAND_UNUSED = 'fpctoolkit.code-actions.remove_unused_variable';
 
@@ -85,31 +86,70 @@ export class FpcCodeAction implements vscode.CodeActionProvider {
 
 	public static readonly providedCodeActionKinds = [
 		vscode.CodeActionKind.QuickFix,
-        vscode.CodeActionKind.Source
+        vscode.CodeActionKind.Source,
+        vscode.CodeActionKind.Refactor
 	];
 
 	provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.CodeAction[] {
 		// for each diagnostic entry that has the matching `code`, create a code action command
-	    let fixActions = context.diagnostics
+	    let actions = context.diagnostics
 			.filter(diagnostic =>{
                 return diagnostic.code === 5025;
             } )
 			.map(diagnostic => this.createCommandCodeAction(document,diagnostic));
         
-        const action = new vscode.CodeAction(
-            "Complete Code",
-            vscode.CodeActionKind.Source
-        );
+        if(context.triggerKind===vscode.CodeActionTriggerKind.Invoke){
+            // CodeComplete
+            const action = new vscode.CodeAction(
+                "Complete Code",
+                vscode.CodeActionKind.Source
+            );
 
-        // CodeComplete
-        action.command = {
-            title: "Complete Code",
-            command: "pasls.completeCode",
-            arguments: [document.uri.toString(), range.start]
-        };
-        fixActions.push(action);
+            action.command = {
+                title: "Complete Code",
+                command: "pasls.completeCode",
+                arguments: [document.uri.toString(), range.start]
+            };
+            actions.push(action);
 
-        return fixActions;
+            const action_removeEmptyMethods = new vscode.CodeAction(
+                "Remove Empty Methods",
+                vscode.CodeActionKind.Refactor
+            );
+            action_removeEmptyMethods.command = {
+                title: "Remove Empty Methods",
+                command: "pasls.removeEmptyMethods",
+                arguments: [document.uri.toString(), range.start]
+            };
+            actions.push(action_removeEmptyMethods);
+
+            const action_removeUnusedUnits = new vscode.CodeAction(
+                "Remove Unused Units",
+                vscode.CodeActionKind.Refactor
+            );
+            action_removeUnusedUnits.command = {
+                title: "Remove Unused Units",
+                command: "pasls.removeUnusedUnits",
+                arguments: [document.uri.toString(), range.start]
+            };
+            actions.push(action_removeUnusedUnits);
+
+            let nrange = new vscode.Range(range.start.line, 0, range.end.line, 9999);
+            let s = document.getText(nrange);
+            if(s.indexOf(':=')>0){
+                const action_invertAssign = new vscode.CodeAction(
+                    "Invert Assignment",
+                    vscode.CodeActionKind.Refactor
+                );
+                action_invertAssign.command = {
+                    title: "Invert Assignment",
+                    command: "pasls.invertAssignment",
+                    arguments: [document.uri.toString(), nrange.start,nrange.end]
+                };
+                actions.push(action_invertAssign);
+            }
+        }
+        return actions;
 	}
 
 	private createCommandCodeAction(document: vscode.TextDocument,diagnostic: vscode.Diagnostic): vscode.CodeAction {

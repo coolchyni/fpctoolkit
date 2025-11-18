@@ -198,7 +198,11 @@ export class InitializationOptions {
     }
     public updateByCompileOption(opt: CompileOption) {
         this.cwd = opt.cwd;
-        this.program = opt.file;
+        if (opt.file && !path.isAbsolute(opt.file) && opt.cwd) {
+            this.program = path.join(opt.cwd, opt.file);
+        } else {
+            this.program = opt.file;
+        }
         let fpcOptions: Array<string> = this.fpcOptions;
         let newopt = opt.toOptionString().split(' ');
         newopt.forEach((s) => {
