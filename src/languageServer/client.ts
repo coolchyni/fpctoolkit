@@ -24,7 +24,8 @@ import {
     ErrorHandlerResult,
     ErrorAction,
     CloseHandlerResult,
-    CloseAction} from 'vscode-languageclient/node';
+    CloseAction,
+    Trace} from 'vscode-languageclient/node';
 
 import { FpcProjectProvider } from '../providers/project';
 import * as util from '../common/util';
@@ -407,7 +408,7 @@ export class TLangClient implements ErrorHandler  {
         }
 
         this.client = new LanguageClient('fpctoolkit.lsp', 'Free Pascal Language Server', serverOptions, clientOptions);
-        
+  
     };
     public onDidChangeVisibleTextEditor(editor: vscode.TextEditor): void {
 
@@ -424,12 +425,20 @@ export class TLangClient implements ErrorHandler  {
         await this.doOnReady();
     };
     async stop(): Promise<void> {
-        this.client?.stop();
+        if (!this.client) {
+            return;
+        }
+        try {
+            await this.client.stop(10000);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.appendLine(`Failed to stop language client: ${message}`);
+        }
     };
 
     async restart(): Promise<void> {
 
-        await this.client?.stop();
+        await this.stop();
         await this.doInit();
         await this.client?.start();
         await this.doOnReady();

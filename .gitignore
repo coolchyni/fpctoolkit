@@ -9,3 +9,4 @@ req.txt
 media
 .kiro
 scripts
+bin/debug

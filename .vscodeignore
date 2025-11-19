@@ -10,3 +10,4 @@ src
 **/*.ts
 .kiro
 scripts
+bin/debug
