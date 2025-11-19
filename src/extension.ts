@@ -20,6 +20,118 @@ export let projectProvider: FpcProjectProvider;
 export let commandManager: FpcCommandManager;
 export let mcpManager: McpManager;
 
+/**
+ * Asynchronously initialize heavy components in the background
+ * to avoid blocking extension activation
+ */
+async function initializeHeavyComponentsAsync(
+    context: vscode.ExtensionContext,
+    workspaceRoot: string
+): Promise<void> {
+    // Give VS Code time to complete extension activation
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+        // Initialize components in parallel with error handling for each
+        const initTasks = [
+            // Language Server
+            (async () => {
+                try {
+                    client = new TLangClient(projectProvider);
+                    await client.doInit();
+                    client.start();
+                    logger.appendLine('Language server initialized successfully');
+                } catch (error) {
+                    logger.appendLine(`Language server initialization failed: ${error}`);
+                    console.error('Language server error:', error);
+                }
+            })(),
+
+            // MCP Manager
+            (async () => {
+                try {
+                    const config = vscode.workspace.getConfiguration('fpctoolkit');
+                    const mcpEnabled = config.get<boolean>('mcp.enabled', true);
+                    if (mcpEnabled) {
+                        mcpManager = new McpManager(context, workspaceRoot);
+                        await mcpManager.initialize(projectProvider);
+                        logger.appendLine('MCP manager initialized successfully');
+                    }
+                } catch (error) {
+                    logger.appendLine(`MCP initialization failed: ${error}`);
+                    console.error('MCP error:', error);
+                }
+            })(),
+
+            // Formatter
+            (async () => {
+                try {
+                    formatter = new JediFormatter();
+                    formatter.doInit();
+                    logger.appendLine('Formatter initialized successfully');
+                } catch (error) {
+                    logger.appendLine(`Formatter initialization failed: ${error}`);
+                    console.error('Formatter error:', error);
+                }
+            })()
+        ];
+        
+        // Wait for all tasks to complete (errors are handled within each task)
+        await Promise.all(initTasks);
+
+        // CodeAction registration (after language server)
+        try {
+            MyCodeAction.activate(context);
+            logger.appendLine('CodeAction provider registered successfully');
+        } catch (error) {
+            logger.appendLine(`CodeAction registration failed: ${error}`);
+            console.error('CodeAction error:', error);
+        }
+
+    } catch (error) {
+        const errorMsg = `Heavy component initialization failed: ${error}`;
+        console.error(errorMsg);
+        logger.appendLine(errorMsg);
+    }
+}
+
+/**
+ * Register debug configuration provider
+ */
+function registerDebugConfiguration(context: vscode.ExtensionContext): void {
+    // Register debug configuration provider to check and compile project before debugging starts
+    context.subscriptions.push(
+        vscode.debug.registerDebugConfigurationProvider('*', {
+            resolveDebugConfiguration: (folder, config, token) => {
+                // Just return config, don't do compilation here to avoid task.json redirect
+                return config;
+            },
+            resolveDebugConfigurationWithSubstitutedVariables: async (folder, config, token) => {
+                try {
+                    // Check for file updates before debugging starts and auto-compile default project if needed
+                    await checkAndBuildBeforeDebug();
+                    return config; // Return config to continue debugging
+                } catch (error) {
+                    // If checkAndBuildBeforeDebug throws an error (user cancelled or compilation failed),
+                    // return undefined to cancel the debug session without opening task.json
+                    logger.appendLine(`Debug session cancelled: ${error}`);
+                    return undefined; // This will cancel the debug session without opening config
+                }
+            }
+        })
+    );
+
+    // Register debug session start events (keep original logic)
+    context.subscriptions.push(
+        vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
+            console.log('Custom event received:', event);
+        }),
+        vscode.debug.onDidStartDebugSession(async (session) => {
+            console.log('Debug session started:', session.name);
+        })
+    );
+}
+
 // Check file updates and auto-compile before debugging
 async function checkAndBuildBeforeDebug(): Promise<void> {
     try {
@@ -175,75 +287,44 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
     }
 
-    // Register debug configuration provider to check and compile project before debugging starts
-    vscode.debug.registerDebugConfigurationProvider('*', {
-        resolveDebugConfiguration: (folder, config, token) => {
-            // Just return config, don't do compilation here to avoid task.json redirect
-            return config;
-        },
-        resolveDebugConfigurationWithSubstitutedVariables: async (folder, config, token) => {
-            try {
-                // Check for file updates before debugging starts and auto-compile default project if needed
-                await checkAndBuildBeforeDebug();
-                return config; // Return config to continue debugging
-            } catch (error) {
-                // If checkAndBuildBeforeDebug throws an error (user cancelled or compilation failed), 
-                // return undefined to cancel the debug session without opening task.json
-                logger.appendLine(`Debug session cancelled: ${error}`);
-                return undefined; // This will cancel the debug session without opening config
-            }
-        }
-    });
-
-    // Register debug session start events (keep original logic)
-    vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
-        console.log('Custom event received:', event);
-    });
-    vscode.debug.onDidStartDebugSession(async (session) => {
-        console.log('Debug session started:', session.name);
-    });
-
-    logger = vscode.window.createOutputChannel('fpctoolkit');
-
-    vscode.window.onDidChangeVisibleTextEditors(onDidChangeVisibleTextEditors);
-    vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument);
-    util.setExtensionContext(context);
     const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
 
+    // ========================================
+    // Phase 1: Fast initialization (synchronous, lightweight)
+    // ========================================
+    
+    // Create output channel first for logging
+    logger = vscode.window.createOutputChannel('fpctoolkit');
+    logger.appendLine('FreePascal Toolkit extension activating...');
 
+    // Set extension context
+    util.setExtensionContext(context);
+    FpcCommandManager.setContext(context);
+
+    // Register event listeners (lightweight)
+    context.subscriptions.push(
+        vscode.window.onDidChangeVisibleTextEditors(onDidChangeVisibleTextEditors),
+        vscode.workspace.onDidChangeTextDocument(onDidChangeTextDocument)
+    );
+
+    // Initialize command manager and register commands
     commandManager = new FpcCommandManager(workspaceRoot);
     commandManager.registerAll(context);
 
-    // Set extension context
-    FpcCommandManager.setContext(context);
-
-    formatter = new JediFormatter();
-    formatter.doInit();
-
+    // Initialize project provider (creates file watchers but doesn't scan yet)
     projectProvider = new FpcProjectProvider(workspaceRoot, context);
     vscode.window.registerTreeDataProvider("FpcProjectExplorer", projectProvider);
 
-    //taskProvider=new FpcTaskProvider(workspaceRoot);
-    context.subscriptions.push(vscode.tasks.registerTaskProvider(
-        FpcTaskProvider.FpcTaskType,
-        taskProvider
-    )
+    // Register task provider
+    context.subscriptions.push(
+        vscode.tasks.registerTaskProvider(
+            FpcTaskProvider.FpcTaskType,
+            taskProvider
+        )
     );
 
-    // Initialize MCP Manager - only if MCP support is enabled and API is available
-    const config = vscode.workspace.getConfiguration('fpctoolkit');
-    const mcpEnabled = config.get<boolean>('mcp.enabled', true);
-    if (mcpEnabled) {
-        try {
-            mcpManager = new McpManager(context, workspaceRoot);
-            await mcpManager.initialize(projectProvider);
-        } catch (error) {
-            console.error('Failed to initialize MCP Manager:', error);
-            logger.appendLine(`MCP initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-    }
-
-    MyCodeAction.activate(context);
+    // Register debug configuration
+    registerDebugConfiguration(context);
 
     // Listen for configuration changes to handle dynamic enabling/disabling of features
     context.subscriptions.push(
@@ -283,10 +364,19 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    client = new TLangClient(projectProvider);
-    await client.doInit();
-    client.start();
+    logger.appendLine('Core components initialized, extension activated');
 
+    // ========================================
+    // Phase 2: Background initialization (asynchronous, heavy components)
+    // ========================================
+    
+    // Initialize heavy components in the background without blocking
+    initializeHeavyComponentsAsync(context, workspaceRoot).catch(error => {
+        logger.appendLine(`Background initialization error: ${error}`);
+        console.error('Background initialization error:', error);
+    });
+
+    // Extension activation completes immediately
 }
 
 function onDidChangeTextDocument(e: vscode.TextDocumentChangeEvent) {
