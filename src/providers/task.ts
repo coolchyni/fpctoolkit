@@ -352,14 +352,13 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 				uri = vscode.Uri.file(key);
 			}
 			if (!uri) {
-				let unit = key.split(".")[0];
-
+				let unit = key.split(".").slice(0, -1).join(".");
+				var unitpath = '';
 				let unitpaths = await client.getUnitPath([unit]);
-				if (unitpaths.length < 1) {
-					return;
+				
+				if (unitpaths.length > 0) {
+					unitpath = unitpaths[0];
 				}
-				let unitpath = unitpaths[0];
-				//let uri:vscode.Uri|undefined=vscode.Uri.file(unitpath);
 				if (unitpath == '') {
 					uri = this.findFile(key)!;
 				} else {
@@ -387,11 +386,13 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 		}
 	}
 	findFile(filename: string): vscode.Uri | undefined {
-
+		// First, search in the current working directory
 		let f = path.join(this.cwd, filename);
 		if (fs.existsSync(f)) {
 			return vscode.Uri.file(f);
 		}
+
+		// Then search in paths specified by -Fu arguments
 		for (let index = 0; index < this.args.length; index++) {
 			const e = this.args[index];
 			if (e.startsWith('-Fu')) {
@@ -406,6 +407,39 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 				}
 			}
 		}
+
+		// Finally, recursively search subdirectories (ignore directories starting with .)
+		const searchInDirectory = (dir: string): string | undefined => {
+			try {
+				const entries = fs.readdirSync(dir, { withFileTypes: true });
+				
+				for (const entry of entries) {
+					// Skip directories starting with .
+					if (entry.isDirectory() && entry.name.startsWith('.')) {
+						continue;
+					}
+
+					if (entry.isDirectory()) {
+						const fullPath = path.join(dir, entry.name);
+						const result = searchInDirectory(fullPath);
+						if (result) {
+							return result;
+						}
+					} else if (entry.name === filename) {
+						return path.join(dir, entry.name);
+					}
+				}
+			} catch (error) {
+				// Ignore directories without read permission
+			}
+			return undefined;
+		};
+
+		const foundPath = searchInDirectory(this.cwd);
+		if (foundPath) {
+			return vscode.Uri.file(foundPath);
+		}
+
 		return undefined;
 	}
 

@@ -178,7 +178,7 @@ export class TLangClient implements ErrorHandler  {
             if (plat === 'win32') {            // 检查是否有调试器附加
                 if(process.env.DEBUG_MODE==='true'){
                     logger.appendLine("Debug mode detected, using paslsproxy.exe");
-                    extensionProcessName = 'win32/paslsproxy.exe';
+                    extensionProcessName = 'debug/paslsproxy.exe';
                 }else{
                     extensionProcessName = 'win32/pasls.exe';
                 }
@@ -206,7 +206,7 @@ export class TLangClient implements ErrorHandler  {
                 this.targetOS = 'win32';
                 if(process.env.DEBUG_MODE==='true'){
                     logger.appendLine("Debug mode detected, using paslsproxy.exe");
-                    extensionProcessName = 'win32/paslsproxy.exe';
+                    extensionProcessName = 'debug/paslsproxy.exe';
                 }else{
                     extensionProcessName = 'win32/pasls.exe';
                 }
@@ -459,13 +459,13 @@ export class TLangClient implements ErrorHandler  {
     async getUnitPath( unitnames:string[]): Promise<string[]> {
 
         var req:ExecuteCommandParams={
-            command:"GetUnitPath",
+            command:"pasls.getUnitPath",
             arguments:unitnames
         };
         let result:ExecuteCommandParams=await this.client?.sendRequest(ExecuteCommandRequest.type,req);
 
 
-        if(result.arguments){
+        if(result &&  result.arguments){
             return result.arguments;
         }else{
             return [];
