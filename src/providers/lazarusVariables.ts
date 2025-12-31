@@ -9,7 +9,7 @@ import { LazarusProject, LazarusUtils } from './lazarus';
 export class LazarusVariableSubstitution {
     private static variables: Map<string, string> = new Map();
     private static projectDir: string = '';
-    private static _buildMode: LazarusProject | null = null;
+    private static _buildMode: { targetOS?: string, targetCPU?: string, name?: string } | null = null;
     private static recursionLimit: number = 10; // Limit to prevent infinite recursion
     private static dependencyGraph: Map<string, Set<string>> = new Map(); // Variable dependency graph
 
@@ -23,7 +23,7 @@ export class LazarusVariableSubstitution {
      * @param outputDirectory Output directory
      */
     public static initialize(
-        buildMode: LazarusProject | null, 
+        buildMode: { targetOS?: string, targetCPU?: string, name?: string } | null, 
         projectDir: string,
         projectName: string,
         projectFile: string,

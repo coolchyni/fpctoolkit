@@ -3,10 +3,11 @@
 media
 node_modules
 src
+out
+dist/*.map
 .github
 **/tsconfig.json
 **/.eslintrc.json
-**/*.map
 **/*.ts
 .kiro
 scripts

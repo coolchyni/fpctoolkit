@@ -73,10 +73,10 @@ interface SetSelectionParams {
 }
 const SetSelectionNotification: NotificationType<SetSelectionParams> = new NotificationType<SetSelectionParams>('pasls/setSelection');
 
-function GetEnvironmentVariables(): {} {
+function GetEnvironmentVariables(): { [key: string]: string | undefined } {
     // load environment variables from settings which are used for CodeTools
     const plat = process.platform;
-    let userEnvironmentVariables = {};
+    let userEnvironmentVariables: { [key: string]: string | undefined } = {};
     let keys: string[] = ['PP', 'FPCDIR', 'LAZARUSDIR', 'FPCTARGET', 'FPCTARGETCPU'];
     let settingEnvironmentVariables = workspace.getConfiguration('fpctoolkit.env');
     Object.keys(settingEnvironmentVariables).forEach(key => {

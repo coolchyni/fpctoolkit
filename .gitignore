@@ -1,5 +1,6 @@
 node_modules
 out
+dist
 *.vsix
 *.lock
 package-lock.json
