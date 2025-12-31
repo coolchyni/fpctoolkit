@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import { client } from '../extension';
 import { DiagnosticSeverity } from 'vscode';
 import { LazarusBuildTerminal } from './lazarusBuildTerminal';
+import { BaseBuildTerminal } from './baseBuildTerminal';
 
 export class BuildOption {
 	targetOS?: string;
@@ -289,236 +290,29 @@ class FpcCustomExecution extends vscode.CustomExecution {
 }
 export var diagCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('fpc');
 
-class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExitStatus {
-	private writeEmitter = new vscode.EventEmitter<string>();
-	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-	private closeEmitter = new vscode.EventEmitter<number>();
-	onDidClose: vscode.Event<number> = this.closeEmitter.event;
-
-	public event_before_build?:()=>void;
-	public event_after_build?:(success:boolean)=>void;
-
-	private process?: ChildProcess.ChildProcess;
-	protected buffer: string = "";
-	protected errbuf: string = "";
-
-	private diagMaps: Map<string, vscode.Diagnostic[]>;
-	   public args: string[] = [];
-	   reason: vscode.TerminalExitReason = vscode.TerminalExitReason.Unknown;
-
-	constructor(private cwd: string, private fpcpath: string) {
-		this.diagMaps = new Map<string, vscode.Diagnostic[]>();
-		this.onDidClose((e) => {
-			//vscode.window.showInformationMessage('onDidClose');	
-		});
-	}
-	code: number | undefined;
-
-	// private static inst?: FpcBuildTaskTerminal;
-	// static getInstance(workspaceRoot?: string, fpcpath?: string): FpcBuildTaskTerminal {
-	// 	if (FpcBuildTaskTerminal.inst) {
-	// 		return FpcBuildTaskTerminal.inst;
-	// 	} else {
-	// 		FpcBuildTaskTerminal.inst = new FpcBuildTaskTerminal(workspaceRoot!, fpcpath!);
-	// 		return FpcBuildTaskTerminal.inst;
-	// 	}
-
-	// }
-	clear() {
-
-	}
-	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-		//vscode.window.createTerminal()
-		// At this point we can start using the terminal.
-		this.doBuild();
+class FpcBuildTaskTerminal extends BaseBuildTerminal {
+	constructor(cwd: string, fpcpath: string) {
+		super(cwd, fpcpath);
 	}
 
-	close(): void {
-
-	}
-
-
-	async buildend() {
-		let units = Array.from(this.diagMaps.keys());
-
-		// The terminal has been closed. Shutdown the build.
-		diagCollection.clear();
-		let has_error: boolean = false;
-		for (const iter of this.diagMaps) {
-			let key = iter[0];
-			let item = iter[1];
-			let uri: vscode.Uri | undefined = undefined;
-			if (fs.existsSync(key)) {
-				uri = vscode.Uri.file(key);
-			}
-			if (!uri) {
-				let unit = key.split(".").slice(0, -1).join(".");
-				var unitpath = '';
-				let unitpaths = await client.getUnitPath([unit]);
-				
-				if (unitpaths.length > 0) {
-					unitpath = unitpaths[0];
-				}
-				if (unitpath == '') {
-					uri = this.findFile(key)!;
-				} else {
-					uri = vscode.Uri.file(unitpath);
-				}
-			}
-
-			if (uri) {
-				diagCollection.set(uri, item);
-			} else {
-				diagCollection.set(vscode.Uri.file(key), item);
-			}
-			if (!has_error) {
-
-				item.forEach((d) => {
-					if (d.severity === 0) {
-						has_error = true;
-					}
-				});
-			}
-		}
-
-		if (has_error) {
-			vscode.commands.executeCommand('workbench.actions.view.problems');
-		}
-	}
-	findFile(filename: string): vscode.Uri | undefined {
-		// First, search in the current working directory
-		let f = path.join(this.cwd, filename);
-		if (fs.existsSync(f)) {
-			return vscode.Uri.file(f);
-		}
-
-		// Then search in paths specified by -Fu arguments
-		for (let index = 0; index < this.args.length; index++) {
-			const e = this.args[index];
-			if (e.startsWith('-Fu')) {
-				let f2 = e.substring(3);
-				if (f2.startsWith('.')) {
-					f = path.join(this.cwd, f2, filename);
-				} else {
-					f = path.join(f2, filename);
-				}
-				if (fs.existsSync(f)) {
-					return vscode.Uri.file(f);
-				}
-			}
-		}
-
-		// Finally, recursively search subdirectories (ignore directories starting with .)
-		const searchInDirectory = (dir: string): string | undefined => {
-			try {
-				const entries = fs.readdirSync(dir, { withFileTypes: true });
-				
-				for (const entry of entries) {
-					// Skip directories starting with .
-					if (entry.isDirectory() && entry.name.startsWith('.')) {
-						continue;
-					}
-
-					if (entry.isDirectory()) {
-						const fullPath = path.join(dir, entry.name);
-						const result = searchInDirectory(fullPath);
-						if (result) {
-							return result;
-						}
-					} else if (entry.name === filename) {
-						return path.join(dir, entry.name);
-					}
-				}
-			} catch (error) {
-				// Ignore directories without read permission
-			}
-			return undefined;
-		};
-
-		const foundPath = searchInDirectory(this.cwd);
-		if (foundPath) {
-			return vscode.Uri.file(foundPath);
-		}
-
-		return undefined;
-	}
-
-
-	private async doBuild(): Promise<number> {
+	protected async executeBuild(): Promise<number> {
 		return new Promise<number>((resolve) => {
-			this.buffer = "";
-			this.errbuf = "";
-			this.diagMaps.clear();
-
-			// === 新增：编译前创建输出目录 ===
-			// 从参数中提取 -o 和 -FU 的路径，进行目录创建
-			const outputFileArg = this.args.find(arg => arg.startsWith('-o'));
-			if (outputFileArg) {
-				let outfile = outputFileArg.substring(2).trim();
-				if (outfile.startsWith('.')) {
-					outfile = path.join(this.cwd, outfile);
-				}
-				const dir = path.dirname(outfile);
-				if (!fs.existsSync(dir)) {
-					try {
-						fs.mkdirSync(dir, { recursive: true });
-					} catch (error) {
-						vscode.window.showErrorMessage("Can't create output directory.(" + dir + ")");
-					}
-				}
-			}
-			const unitOutputDirArg = this.args.find(arg => arg.startsWith('-FU'));
-			if (unitOutputDirArg) {
-				let dir = unitOutputDirArg.substring(3).trim();
-				if (dir.startsWith('.')) {
-					dir = path.join(this.cwd, dir);
-				}
-				if (!fs.existsSync(dir)) {
-					try {
-						fs.mkdirSync(dir, { recursive: true });
-					} catch (error) {
-						vscode.window.showErrorMessage("Can't create unit output directory.(" + dir + ")");
-					}
-				}
-			}
-			// === 结束 ===
-
-			if(this.event_before_build){
-				this.event_before_build();
-			}
 			this.emit(TerminalEscape.apply({ msg: `${this.fpcpath} ${this.args.join(' ')}\r\n`, style: [TE_Style.Bold] }));
 			this.process = ChildProcess.spawn(this.fpcpath, this.args, { cwd: this.cwd });
 
 			this.process.stdout?.on('data', this.stdout.bind(this));
 			this.process.stderr?.on('data', this.stderr.bind(this));
-			this.process.on('close', (code) => {
-				this.writeEmitter.fire(`Exited with code ${code}.\r\nBuild complete. \r\n\r\n`);
-				// 设置 reason
-				if (code === 0) {
-					this.reason = vscode.TerminalExitReason.User;
-				} else {
-					this.reason = vscode.TerminalExitReason.Unknown;
-				}
-				this.buildend().then(() => {
-					this.closeEmitter.fire(code);
-				});
-				if(this.event_after_build){
-					this.event_after_build(code==0);
-				}
-				resolve(0);
+			this.process.on('close', async (code) => {
+				await this.handleProcessClose(code);
+				resolve(code || 0);
 			});
 		});
 	}
 
-
-	emit(msg: string) {
-		this.writeEmitter.fire(msg + '\r\n');
-	}
-	stdout(data: any) {
+	private stdout(data: any) {
 		if (typeof data === "string") {
 			this.buffer += data;
-		}
-		else {
+		} else {
 			this.buffer += data.toString("utf8");
 		}
 		const end = this.buffer.lastIndexOf('\n');
@@ -526,98 +320,27 @@ class FpcBuildTaskTerminal implements vscode.Pseudoterminal, vscode.TerminalExit
 			this.onOutput(this.buffer.substr(0, end));
 			this.buffer = this.buffer.substr(end + 1);
 		}
-		// if (this.buffer.length) {
-		// 	this.emit(this.buffer);
-		// }
 	}
 
-	stderr(data: any) {
-		if (typeof data === "string") {
-			this.emit(TerminalEscape.apply({ msg: data, style: [TE_Style.Yellow] }));
-
-		}
-		else {
-			this.emit(TerminalEscape.apply({ msg: data.toString("utf8"), style: [TE_Style.Yellow] }));
-		}
-	}
-	getDiagnosticSeverity(level: string) {
-		switch (level) {
-			case 'Fatal':
-			case 'Error':
-				return vscode.DiagnosticSeverity.Error;
-			case 'Warning':
-				return vscode.DiagnosticSeverity.Warning;
-			case 'Note':
-				return vscode.DiagnosticSeverity.Information;
-			case 'Hint':
-				return vscode.DiagnosticSeverity.Hint;
-			default:
-				return vscode.DiagnosticSeverity.Information;
-		}
-	}
-	onOutput(lines: string) {
-		let ls = <string[]>lines.split('\n');
-		let cur_file = "";
-		let reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/
+	private onOutput(lines: string) {
+		const ls = lines.split('\n');
+		
 		ls.forEach(line => {
+			// Try to parse FPC-style error
+			if (this.parseFpcStyleError(line)) {
+				return;
+			}
 
-			let matchs = reg.exec(line);
-
-			if (matchs) {
-
-				let ln = Number(matchs[5]);
-				let col = Number(matchs[7]);
-				let file = matchs[1];
-				let unit = matchs[2];
-				let level = matchs[8];
-				let msgcode = matchs[9];
-				let msg = matchs[10];
-				// this.emit(
-				// 	TerminalEscape.apply({ msg: file+"("+ln+','+col +") ", style: TE_Style.Blue })+
-				// 	TerminalEscape.apply({ msg: level+":"+msg, style: TE_Style.Red })
-				// );
-
-				let diag = new vscode.Diagnostic(
-					new vscode.Range(new vscode.Position(ln - 1, col - 1), new vscode.Position(ln - 1, col - 1)),
-					msg,
-					this.getDiagnosticSeverity(level)
-				);
-				diag.code = Number.parseInt(msgcode);
-
-				// if(msg.match(/ Local variable ".*?".*?(?:not|never) used/))
-				// {
-				// 	diag.code='variable-not-used';
-				// }
-				let basename = path.basename(file);
-				// if((cur_file=="")||(path.basename(cur_file)!=path.basename(file))){
-				// 	cur_file=file;
-				// }
-				if (this.diagMaps?.has(basename)) {
-
-					this.diagMaps.get(basename)?.push(diag);
-				} else {
-
-					this.diagMaps.set(basename, [diag]);
-
-				}
-				if (diag.severity == DiagnosticSeverity.Error) {
-					this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
-				} else {
-					this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Cyan] }));
-				}
-
-			} else if (line.startsWith('Error:') || line.startsWith('Fatal:')) { //Fatal|Error|Warning|Note
+			// Handle other error/warning lines
+			if (line.startsWith('Error:') || line.startsWith('Fatal:')) {
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
-
 			} else if (line.startsWith('Warning:')) {
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.BrightYellow] }));
-			}
-			else {
+			} else {
 				this.emit(line);
 			}
 		});
 	}
-
 }
 
 export let taskProvider: FpcTaskProvider;

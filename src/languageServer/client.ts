@@ -353,6 +353,7 @@ export class TLangClient implements ErrorHandler  {
 
         let run: Executable = {
             command: executable,
+            //args: ["-l","log.txt"],
             options: {
                 env: GetEnvironmentVariables()
             }
