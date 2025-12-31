@@ -43,12 +43,10 @@ export class PascalMcpServer {
             console.error('Failed to read package.json version:', e);
         }
         
-        // Create MCP server instance with enhanced capabilities
+        // Create MCP server instance
         this.server = new McpServer({
             name: "pascal-mcp-server",
-            version: version,
-            capabilities: {
-            }
+            version: version
         });
 
         this.registerTools();
@@ -152,16 +150,16 @@ export class PascalMcpServer {
                 templateName: z.string().describe("Name of the template to use (get available names from getProjectTemplates tool)"),
                 projectName: z.string().describe("Name for the new project (should be in English, no spaces or special characters)")
             },
-            async ({ templateName, projectName }) => {
+            async (params: { templateName: string; projectName: string }) => {
                 try {
                     const result = await this.createProjectFromTemplate(
-                        templateName as string,
-                        projectName as string
+                        params.templateName,
+                        params.projectName
                     );
                     return {
                         content: [
                             {
-                                type: "text",
+                                type: "text" as const,
                                 text: result
                             }
                         ]
@@ -170,7 +168,7 @@ export class PascalMcpServer {
                     return {
                         content: [
                             {
-                                type: "text",
+                                type: "text" as const,
                                 text: `Error creating project: ${error instanceof Error ? error.message : 'Unknown error'}`
                             }
                         ]

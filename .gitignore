@@ -2,8 +2,6 @@ node_modules
 out
 dist
 *.vsix
-*.lock
-package-lock.json
 *.mov
 .DS_Store
 req.txt
