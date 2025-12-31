@@ -7,20 +7,48 @@ on:
 
 jobs:
   package:
+    strategy:
+      matrix:
+        target: [win32-x64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
+    
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org/
+          
       - name: Install dependencies
         run: npm i
+        
       - name: Install vsce
         run: npm i -g vsce
-      - name: Install esbuild
-        run: npm i -g esbuild
-      - name: Build with esbuild
-        run: esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node
-      - name: Package Extension into .vsix file
-        run: vsce package
+
+      - name: Prepare Binaries for ${{ matrix.target }}
+        shell: bash
+        run: |
+          case "${{ matrix.target }}" in
+            win32-x64)     KEEP="win32" ;;
+            linux-x64)     KEEP="x86_64-linux" ;;
+            linux-arm64)   KEEP="aarch64-linux" ;;
+            darwin-x64)    KEEP="x86_64-darwin" ;;
+            darwin-arm64)  KEEP="x86_64-darwin" ;;
+            *)             echo "Unknown target"; exit 1 ;;
+          esac
+          find bin -mindepth 1 -maxdepth 1 -type d ! -name "$KEEP" ! -name "debug" -exec rm -rf {} +
+
+      - name: Build and Bundle
+        run: npm run vscode:prepublish
+
+      - name: Package Extension
+        id: asset
+        shell: bash
+        run: |
+          vsce package --target ${{ matrix.target }}
+          echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpctoolkit-${{ matrix.target }}
+          path: ${{ steps.asset.outputs.vsix_path }}

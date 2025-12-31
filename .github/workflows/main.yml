@@ -16,6 +16,10 @@ permissions:
   
 jobs:
   release:
+    strategy:
+      matrix:
+        target: [win32-x64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
+    
     runs-on: ubuntu-latest
 
     steps:
@@ -23,71 +27,50 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org/
 
       - name: Install the dependencies
         run: npm i
 
       - name: Install vsce
         run: npm i -g vsce
-        
-      - name: Install esbuild
-        run: npm i -g esbuild
-        
-      - name: Build with esbuild
-        run: esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs  --platform=node
 
-      #
-      # Package and Upload Extension
-      #
-      # NOTE:
-      # The "vscode:prepublish" script in package.json will be executed to compile the extension
-      # prior to packaging.
-      #
-      - name: Package Extension into .vsix file
+      - name: Prepare Binaries for ${{ matrix.target }}
+        shell: bash
+        run: |
+          case "${{ matrix.target }}" in
+            win32-x64)     KEEP="win32" ;;
+            linux-x64)     KEEP="x86_64-linux" ;;
+            linux-arm64)   KEEP="aarch64-linux" ;;
+            darwin-x64)    KEEP="x86_64-darwin" ;;
+            darwin-arm64)  KEEP="x86_64-darwin" ;; # Apple Silicon continues to use Intel binary via Rosetta for now
+            *)             echo "Unknown target"; exit 1 ;;
+          esac
+          
+          echo "Keeping only bin/$KEEP and common files..."
+          # Delete all other architecture subdirectories in bin/
+          find bin -mindepth 1 -maxdepth 1 -type d ! -name "$KEEP" ! -name "debug" -exec rm -rf {} +
+
+      - name: Build and Bundle
+        run: npm run vscode:prepublish
+
+      - name: Package Extension
         id: asset
         shell: bash
         run: |
-          vsce package
+          vsce package --target ${{ matrix.target }}
           echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
 
-      - name: Get commit message for release body
-        id: commit_message
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s%n%n%b" $TAG_NAME)
-          echo "commit_message<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMIT_MESSAGE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Delete existing release (if exists)
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG_NAME" \
-            | jq -r '.id // empty')
-          
-          if [ ! -z "$RELEASE_ID" ]; then
-            echo "Deleting existing release with ID: $RELEASE_ID"
-            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
-          else
-            echo "No existing release found for tag: $TAG_NAME"
-          fi
-
-      - name: Create Release
+      - name: Create or Update Release
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: ${{ steps.commit_message.outputs.commit_message }}
           files: ${{ steps.asset.outputs.vsix_path }}
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-      - name: Publish
-        run: vsce publish -p ${{ secrets.VSCE_PAT }}
+      - name: Publish to Marketplace
+        if: startsWith(github.ref, 'refs/tags/')
+        run: vsce publish -p ${{ secrets.VSCE_PAT }} --target ${{ matrix.target }}
 
