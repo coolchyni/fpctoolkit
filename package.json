@@ -660,6 +660,7 @@
     "package": "vsce package",
     "publish": "vsce publish",
     "vscode:prepublish": "npm run compile && npm run build-base -- --minify",
+    "esbuild": "npm run compile && npm run build-base -- --sourcemap",
     "build-base": "esbuild ./out/extension.js --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node"
   },
   "dependencies": {

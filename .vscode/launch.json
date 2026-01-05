@@ -14,12 +14,12 @@
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js",
+				"${workspaceFolder}/dist/**/*.js"
 			],
 			"env": {
-				"DEBUG_MODE":"false"
+				"DEBUG_MODE":"true"
 			},
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "npm: esbuild"
 		},
 		{
 			"name": "Extension Tests",
@@ -33,7 +33,7 @@
 			"outFiles": [
 				"${workspaceFolder}/out/test/**/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "npm: compile"
 		}
 	]
 }
