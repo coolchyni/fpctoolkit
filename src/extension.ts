@@ -187,7 +187,7 @@ async function checkAndBuildBeforeDebug(): Promise<void> {
             }
         }
 
-        let defaultTask = defaultFpcItem?.projectTask?.getTask();
+        let defaultTask = await defaultFpcItem?.projectTask?.getTask();
 
         if (!defaultTask) {
             logger.appendLine('Debug pre-check: No suitable task found for compilation');

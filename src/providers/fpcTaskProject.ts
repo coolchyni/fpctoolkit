@@ -60,7 +60,12 @@ export class FpcTask implements IProjectTask {
      * Get vscode.Task object for this task
      * @returns vscode.Task object
      */
-    getTask(): vscode.Task {
+    async getTask(): Promise<vscode.Task> {
+        // If this is an auto-generated task (label is [default]), ensure it's saved to tasks.json
+        if (this.label === '[default]' && this.project.file) {
+            await this.ensureTaskInTasksJson();
+        }
+        
         // Get task from taskProvider
         const { taskProvider } = require('./task');
         return taskProvider.getTask(
@@ -68,6 +73,58 @@ export class FpcTask implements IProjectTask {
             this.project.file,
             this.taskDefinition
         );
+    }
+
+    /**
+     * Ensure this task configuration exists in tasks.json
+     * If not, create a default configuration for it
+     */
+    private async ensureTaskInTasksJson(): Promise<void> {
+        try {
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (!workspaceRoot) {
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(workspaceRoot));
+            const tasks = config.get<any[]>('tasks') || [];
+
+            // Check if a task for this file already exists
+            const existingTask = tasks.find(task => 
+                task.type === 'fpc' && task.file === this.project.file
+            );
+
+            if (!existingTask) {
+                // Create a new task definition
+                const path = require('path');
+                const fileName = path.basename(this.project.file, path.extname(this.project.file));
+                const newTask = {
+                    type: 'fpc',
+                    label: fileName,
+                    file: this.project.file,
+                    buildOption: {
+                        unitOutputDir: './bin/${targetOS}-${targetCPU}'
+                    },
+                    group: {
+                        kind: 'build',
+                        isDefault: false
+                    }
+                };
+
+                // Add to tasks array
+                tasks.push(newTask);
+
+                // Update the configuration and wait for it to complete
+                await config.update('tasks', tasks, vscode.ConfigurationTarget.WorkspaceFolder);
+                console.log(`Auto-generated FPC task for ${this.project.file}`);
+                
+                // Update internal task definition
+                this.taskDefinition = newTask;
+                this.label = fileName;
+            }
+        } catch (error) {
+            console.error(`Error ensuring task in tasks.json:`, error);
+        }
     }
 
     /**

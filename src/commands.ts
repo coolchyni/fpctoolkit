@@ -141,9 +141,8 @@ export class FpcCommandManager {
     };
 
     ProjectBuild = async (node: FpcItem) => {
-        // Only child nodes (build configurations) can perform the Build operation
+        // Root node (level 0) does not trigger build
         if (node.level === 0) {
-            // Root node (project level) does not perform any operation
             return;
         }
 
@@ -154,14 +153,8 @@ export class FpcCommandManager {
             return;
         }
 
-        // Get the task from the project task
-        const task = projectTask.getTask();
-        
-        // Set to normal build mode
-        // let newtask = taskProvider.taskMap.get(task.name);
-        // if (newtask) {
-        //     (newtask as FpcTask).BuildMode = BuildMode.normal;
-        // }
+        // Get the task from the project task (this will auto-generate config if needed)
+        const task = await projectTask.getTask();
 
         // Execute the task
         vscode.tasks.executeTask(task);
@@ -184,7 +177,7 @@ export class FpcCommandManager {
         // Handle child nodes of Lazarus projects
         if (node.projectType === ProjectType.Lazarus) {
             // Get the task from the project task
-            const task = projectTask.getTask();
+            const task = await projectTask.getTask();
             
             // Get compile options for this task
             const compileOption = projectTask.getCompileOption(this.workspaceRoot);

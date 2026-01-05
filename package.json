@@ -377,7 +377,7 @@
         },
         {
           "command": "fpctoolkit.project.build",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "inline"
         }
       ],

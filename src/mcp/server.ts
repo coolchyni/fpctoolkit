@@ -204,7 +204,7 @@ export class PascalMcpServer {
             }
 
             // Get the VS Code task from the project task
-            const vscodeTask = projectTask.getTask();
+            const vscodeTask = await projectTask.getTask();
 
             // Execute the VS Code task and capture detailed output
             return new Promise((resolve, reject) => {
