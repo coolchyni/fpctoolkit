@@ -456,21 +456,4 @@ export class TLangClient implements ErrorHandler  {
         await this.client?.sendRequest(ExecuteCommandRequest.type,req);       
 
     }
-
-    async getUnitPath( unitnames:string[]): Promise<string[]> {
-
-        var req:ExecuteCommandParams={
-            command:"pasls.getUnitPath",
-            arguments:unitnames
-        };
-        let result:ExecuteCommandParams=await this.client?.sendRequest(ExecuteCommandRequest.type,req);
-
-
-        if(result &&  result.arguments){
-            return result.arguments;
-        }else{
-            return [];
-        }
-        
-    }
 }

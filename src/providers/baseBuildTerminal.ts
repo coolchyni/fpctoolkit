@@ -126,19 +126,7 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
             if (fs.existsSync(key)) {
                 uri = vscode.Uri.file(key);
             } else {
-                // Try to find the file using client
-                const unit = key.split(".").slice(0, -1).join(".");
-                let unitpath = '';
-                const unitpaths: string[] = await client.getUnitPath([unit]);
-                
-                if (unitpaths.length > 0) {
-                    unitpath = unitpaths[0];
-                }
-                if (unitpath === '') {
-                    uri = this.findFile(key);
-                } else {
-                    uri = vscode.Uri.file(unitpath);
-                }
+                uri = this.findFile(key);
             }
 
             if (uri) {
