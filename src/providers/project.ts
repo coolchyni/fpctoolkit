@@ -26,7 +26,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	private timeout?: NodeJS.Timeout = undefined;
 	private _hasSourceFileChanged: boolean = false; // Flag indicating whether source files have changed
 	private _projectInfosMap: Map<string, IProjectIntf> = new Map(); // Store parsed project interfaces
-	constructor(private workspaceRoot: string, context: vscode.ExtensionContext) {
+	constructor(private workspaceRoot: string, context: vscode.ExtensionContext, private projectTypeFilter?: ProjectType) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
 
@@ -152,25 +152,29 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	 * @param itemMaps Project mapping
 	 */
 	private collectFpcTaskProjects(itemMaps: Map<string, FpcItem>): void {
+		if (this.projectTypeFilter !== undefined && this.projectTypeFilter !== ProjectType.FPC) {
+			return;
+		}
 		this.config?.tasks?.forEach((e: any) => {
 			if (e.type === 'fpc') {
-				if (!itemMaps.has(e.file)) {
+				const absolutePath = path.isAbsolute(e.file) ? e.file : path.join(this.workspaceRoot, e.file);
+				if (!itemMaps.has(absolutePath)) {
 					// Create FpcTaskProject as IProjectIntf
 					const projectIntf = new FpcTaskProject(
 						path.basename(e.file),
-						e.file,
+						absolutePath,
 						e.group?.isDefault || false,
 						e
 					);
 
 					// Create FpcItem and add to mapping
 					itemMaps.set(
-						e.file,
+						absolutePath,
 						new FpcItem(
 							0,
 							path.basename(e.file),
 							vscode.TreeItemCollapsibleState.Expanded,
-							e.file,
+							absolutePath,
 							true,
 							e.group?.isDefault || false,
 							ProjectType.FPC,
@@ -179,7 +183,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 					);
 				} else {
 					// If a project with the same file already exists, add task to existing project
-					const existingItem = itemMaps.get(e.file);
+					const existingItem = itemMaps.get(absolutePath);
 					if (existingItem && existingItem.project) {
 						// Add this task to the existing project
 						const projectIntf = existingItem.project as FpcTaskProject;
@@ -199,21 +203,37 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	 * @param workspaceFolder Workspace folder
 	 * @param itemMaps Project mapping
 	 */
-	private collectProjectsFromWorkspace(workspaceFolder: vscode.WorkspaceFolder, itemMaps: Map<string, FpcItem>): void {
+	private async collectProjectsFromWorkspace(workspaceFolder: vscode.WorkspaceFolder, itemMaps: Map<string, FpcItem>): Promise<void> {
 		try {
-			const files = fs.readdirSync(workspaceFolder.uri.fsPath);
+			// Find all .lpr, .dpr, and .lpi files in the workspace
+			// Pass null to exclude to respect files.exclude and .gitignore (if configured)
+			const files = await vscode.workspace.findFiles(
+				new vscode.RelativePattern(workspaceFolder, "**/*.{lpr,dpr,lpi}"),
+				null
+			);
 
-			for (const file of files) {
+			// Update Lazarus project existence context
+			const hasLpi = files.some(file => file.fsPath.toLowerCase().endsWith('.lpi'));
+			vscode.commands.executeCommand('setContext', 'fpctoolkit.lazarus.hasProjects', hasLpi);
+
+			for (const fileUri of files) {
+				const absolutePath = fileUri.fsPath;
+				const relativePath = path.relative(workspaceFolder.uri.fsPath, absolutePath);
+				
 				// Handle .lpr and .dpr files (FPC projects)
-				if (file.toLowerCase().endsWith('.lpr') || file.toLowerCase().endsWith('.dpr')) {
-					this.collectFpcProject(file, itemMaps, workspaceFolder);
+				if (absolutePath.toLowerCase().endsWith('.lpr') || absolutePath.toLowerCase().endsWith('.dpr')) {
+					if (this.projectTypeFilter === undefined || this.projectTypeFilter === ProjectType.FPC) {
+						this.collectFpcProject(absolutePath, itemMaps, workspaceFolder, relativePath);
+					}
 				}
 				// Handle .lpi files (Lazarus projects) - only if Lazarus support is enabled
-				else if (file.toLowerCase().endsWith('.lpi')) {
-					const config = vscode.workspace.getConfiguration('fpctoolkit');
-					const lazarusEnabled = config.get<boolean>('lazarus.enabled', true);
-					if (lazarusEnabled) {
-						this.collectLazarusProject(file, itemMaps, workspaceFolder);
+				else if (absolutePath.toLowerCase().endsWith('.lpi')) {
+					if (this.projectTypeFilter === undefined || this.projectTypeFilter === ProjectType.Lazarus) {
+						const config = vscode.workspace.getConfiguration('fpctoolkit');
+						const lazarusEnabled = config.get<boolean>('lazarus.enabled', true);
+						if (lazarusEnabled) {
+							this.collectLazarusProject(absolutePath, itemMaps, workspaceFolder, relativePath);
+						}
 					}
 				}
 			}
@@ -224,40 +244,44 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 	/**
 	 * Collect FPC project
-	 * @param file File name
+	 * @param file Absolute path or file name
 	 * @param itemMaps Project mapping
 	 * @param workspaceFolder Workspace folder
+	 * @param relativePath Optional relative path for display
 	 */
-	private collectFpcProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder): void {
+	private collectFpcProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder, relativePath?: string): void {
 		try {
+			const absolutePath = path.isAbsolute(file) ? file : path.join(workspaceFolder.uri.fsPath, file);
+			const displayName = relativePath || file;
+
 			// If project already in mapping, mark as existing and return
-			if (itemMaps.has(file)) {
-				itemMaps.get(file)!.fileexist = true;
+			if (itemMaps.has(absolutePath)) {
+				itemMaps.get(absolutePath)!.fileexist = true;
 				return;
 			}
 
 			// Create FpcTaskProject as IProjectIntf
 			const projectIntf = new FpcTaskProject(
-				file,
-				file,
+				displayName,
+				absolutePath,
 				false, // Initially not set as default
 				null   // No task definition
 			);
 
 			// Create FpcItem and add to mapping
-			itemMaps.set(
-				file,
-				new FpcItem(
-					0,
-					file,
-					vscode.TreeItemCollapsibleState.Expanded,
-					file,
-					true,
-					false,
-					ProjectType.FPC,
-					projectIntf
-				)
+			const item = new FpcItem(
+				0,
+				displayName,
+				vscode.TreeItemCollapsibleState.Expanded,
+				absolutePath,
+				true,
+				false,
+				ProjectType.FPC,
+				projectIntf
 			);
+			
+			// Use absolute path as key to ensure uniqueness
+			itemMaps.set(absolutePath, item);
 		} catch (error) {
 			console.error(`Error collecting FPC project ${file}:`, error);
 			vscode.window.showErrorMessage("FPCToolkit:" + Error(<string>error).message);
@@ -266,33 +290,36 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 	/**
 	 * Collect Lazarus project
-	 * @param file File name
+	 * @param file Absolute path or file name
 	 * @param itemMaps Project mapping
 	 * @param workspaceFolder Workspace folder
+	 * @param relativePath Optional relative path for display
 	 */
-	private collectLazarusProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder): void {
+	private collectLazarusProject(file: string, itemMaps: Map<string, FpcItem>, workspaceFolder: vscode.WorkspaceFolder, relativePath?: string): void {
 		try {
-			const lpiPath = path.join(workspaceFolder.uri.fsPath, file);
-			const projectIntf = this.getProjectInfos(lpiPath);
+			const absolutePath = path.isAbsolute(file) ? file : path.join(workspaceFolder.uri.fsPath, file);
+			const displayName = relativePath || file;
+			
+			const projectIntf = this.getProjectInfos(absolutePath);
 
 			if (projectIntf) {
-			// Check if project is marked as default
+				// Check if project is marked as default
 				const hasDefaultTask = projectIntf.tasks && projectIntf.tasks.some(task => task.isDefault);
 
-			// Create project root node
+				// Create project root node
 				const rootItem = new FpcItem(
 					0,
-					file,
+					displayName,
 					vscode.TreeItemCollapsibleState.Expanded,
-					file,
+					absolutePath,
 					true,
 					hasDefaultTask || false, // Root node default state based on whether there's a default task
 					ProjectType.Lazarus,
 					projectIntf
 				);
 
-			// Add project to mapping
-				itemMaps.set(file, rootItem);
+				// Add project to mapping using absolute path as key
+				itemMaps.set(absolutePath, rootItem);
 			}
 		} catch (error) {
 			console.error(`Error collecting Lazarus project ${file}:`, error);
@@ -384,7 +411,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		return element;
 	}
 
-	getChildren(element?: FpcItem | undefined): vscode.ProviderResult<FpcItem[]> {
+	async getChildren(element?: FpcItem | undefined): Promise<FpcItem[]> {
 
 		if (element) {
 		// Handle child nodes (project build configurations)
@@ -413,7 +440,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				}
 			}
 
-			return Promise.resolve(items);
+			return items;
 
 		} else {
 		// Handle root node
@@ -432,7 +459,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 		// 1.2 Collect projects from workspace files
 			if (vscode.workspace.workspaceFolders) {
 				for (const workspaceFolder of vscode.workspace.workspaceFolders) {
-					this.collectProjectsFromWorkspace(workspaceFolder, itemMaps);
+					await this.collectProjectsFromWorkspace(workspaceFolder, itemMaps);
 				}
 			}
 
@@ -446,7 +473,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				items.push(item);
 			}
 
-			return Promise.resolve(items);
+			return items;
 		}
 	}
 

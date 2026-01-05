@@ -526,7 +526,7 @@ export class LazarusProjectParser {
             const projectInfo = new LazarusProject(
                 projectTitle,
                 mainFile,
-                path.basename(lpiFilePath),
+                lpiFilePath,
                 false // Default status will be determined later
             );
 
@@ -803,7 +803,7 @@ export class LazarusProjectParser {
         const projectInfo = new LazarusProject(
             projectTitle,
             '', // 没有主文件
-            fileName,
+            lpiFilePath,
             true // 是默认
         );
 

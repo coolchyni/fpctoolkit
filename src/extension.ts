@@ -16,7 +16,9 @@ import { version } from 'os';
 export let client: TLangClient;
 export let formatter: JediFormatter;
 export let logger: vscode.OutputChannel;
-export let projectProvider: FpcProjectProvider;
+export let fpcProvider: FpcProjectProvider;
+export let lazarusProvider: FpcProjectProvider;
+export let projectProvider: FpcProjectProvider; // For backward compatibility
 export let commandManager: FpcCommandManager;
 export let mcpManager: McpManager;
 
@@ -311,9 +313,13 @@ export async function activate(context: vscode.ExtensionContext) {
     commandManager = new FpcCommandManager(workspaceRoot);
     commandManager.registerAll(context);
 
-    // Initialize project provider (creates file watchers but doesn't scan yet)
-    projectProvider = new FpcProjectProvider(workspaceRoot, context);
-    vscode.window.registerTreeDataProvider("FpcProjectExplorer", projectProvider);
+    // Initialize project providers
+    fpcProvider = new FpcProjectProvider(workspaceRoot, context, ProjectType.FPC);
+    lazarusProvider = new FpcProjectProvider(workspaceRoot, context, ProjectType.Lazarus);
+    projectProvider = fpcProvider; // Default to FPC for legacy references
+
+    vscode.window.registerTreeDataProvider("FpcProjectExplorer", fpcProvider);
+    vscode.window.registerTreeDataProvider("LazarusProjectExplorer", lazarusProvider);
 
     // Register task provider
     context.subscriptions.push(
@@ -332,8 +338,11 @@ export async function activate(context: vscode.ExtensionContext) {
             // Handle Lazarus support configuration changes
             if (event.affectsConfiguration('fpctoolkit.lazarus.enabled')) {
                 // Refresh project provider to show/hide Lazarus projects
-                if (projectProvider) {
-                    projectProvider.refresh();
+                if (fpcProvider) {
+                    fpcProvider.refresh();
+                }
+                if (lazarusProvider) {
+                    lazarusProvider.refresh();
                 }
             }
 

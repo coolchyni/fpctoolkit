@@ -51,6 +51,11 @@ export class LazarusBuildTerminal extends BaseBuildTerminal {
                     msg: `${strategy.command} ${strategy.args.join(' ')}\r\n`, 
                     style: [TE_Style.Bold] 
                 }));
+                // Ensure output directory exists if using FPC
+                if (strategy.compiler === 'fpc') {
+                    this.createOutputDirectories(strategy.args);
+                }
+
 
                 // Execute compilation
                 this.process = ChildProcess.spawn(strategy.command, strategy.args, { cwd: this.cwd });

@@ -32,6 +32,7 @@
   },
   "activationEvents": [
     "onView:FpcProjectExplorer",
+    "onView:LazarusProjectExplorer",
     "onLanguage:objectpascal",
     "onDebug"
   ],
@@ -346,32 +347,32 @@
       "view/item/context": [
         {
           "command": "fpctoolkit.project.build",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@1"
         },
         {
           "command": "fpctoolkit.project.rebuild",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@2"
         },
         {
           "command": "fpctoolkit.project.clean",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcproject@3"
         },
         {
           "command": "fpctoolkit.project.setdefault",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "fpcprojectcfg@4"
         },
         {
           "command": "fpctoolkit.project.add",
-          "when": "view == FpcProjectExplorer && (viewItem==fpcproject)",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcproject)",
           "group": "fpcproject@0"
         },
         {
           "command": "fpctoolkit.project.openWithLazarus",
-          "when": "view == FpcProjectExplorer && viewItem==lazarusproject",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && viewItem==lazarusproject",
           "group": "lazarusproject@1"
         },
         {
@@ -621,7 +622,14 @@
       "explorer": [
         {
           "id": "FpcProjectExplorer",
-          "name": "FPC Projects"
+          "name": "FPC Projects",
+          "icon": "images/logo.png"
+        },
+        {
+          "id": "LazarusProjectExplorer",
+          "name": "Lazarus Projects",
+          "icon": "images/logo.png",
+          "when": "fpctoolkit.lazarus.hasProjects"
         }
       ]
     },

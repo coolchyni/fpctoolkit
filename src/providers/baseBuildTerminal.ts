@@ -78,11 +78,11 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
     /**
      * Create output directories from FPC arguments
      */
-    protected createOutputDirectories() {
-        const outputFileArg = this.args.find(arg => arg.startsWith('-o'));
+    protected createOutputDirectories(args: string[] = this.args) {
+        const outputFileArg = args.find(arg => arg.startsWith('-o'));
         if (outputFileArg) {
             let outfile = outputFileArg.substring(2).trim();
-            if (outfile.startsWith('.')) {
+            if (!path.isAbsolute(outfile)) {
                 outfile = path.join(this.cwd, outfile);
             }
             const dir = path.dirname(outfile);
@@ -95,10 +95,10 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
             }
         }
 
-        const unitOutputDirArg = this.args.find(arg => arg.startsWith('-FU'));
+        const unitOutputDirArg = args.find(arg => arg.startsWith('-FU'));
         if (unitOutputDirArg) {
             let dir = unitOutputDirArg.substring(3).trim();
-            if (dir.startsWith('.')) {
+            if (!path.isAbsolute(dir)) {
                 dir = path.join(this.cwd, dir);
             }
             if (!fs.existsSync(dir)) {

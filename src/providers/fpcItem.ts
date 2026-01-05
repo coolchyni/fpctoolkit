@@ -27,8 +27,8 @@ export class FpcItem extends vscode.TreeItem {
         // Determine display label based on level
         let displayLabel = label;
         if (level === 0) {
-            // Root node (level=0): only show file name
-            displayLabel = file;
+            // Root node (level=0): show the relative path (label)
+            displayLabel = label;
         }
 
         super(displayLabel, collapsibleState);

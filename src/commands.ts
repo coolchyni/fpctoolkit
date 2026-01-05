@@ -491,7 +491,7 @@ export class FpcCommandManager {
         }
 
         // Get the project file path
-        const projectFile = path.join(this.workspaceRoot, node.file);
+        const projectFile = path.isAbsolute(node.file) ? node.file : path.join(this.workspaceRoot, node.file);
         if (!fs.existsSync(projectFile)) {
             vscode.window.showErrorMessage(`Project file not found: ${projectFile}`);
             return;

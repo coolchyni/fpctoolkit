@@ -31,13 +31,13 @@ export class LazarusCompiler {
                 stdio: ['ignore', 'pipe', 'ignore']
             });
 
-            if (result && result.includes('lazbuild')) {
+            if (result && result.trim().length > 0) {
                 this.lazbuildPath = 'lazbuild';
                 this.lazbuildChecked = true;
                 return true;
             }
         } catch (error) {
-            // lazbuild not found in PATH, try common installation paths
+            // lazbuild not found in PATH or failed, try common installation paths
         }
 
         // Check common installation paths
@@ -46,20 +46,21 @@ export class LazarusCompiler {
         for (const lazPath of commonPaths) {
             try {
                 if (fs.existsSync(lazPath)) {
-                    const result = ChildProcess.execSync(`"${lazPath}"`, {
+                    // Just verify it's executable by checking version
+                    const result = ChildProcess.execSync(`"${lazPath}" --version`, {
                         encoding: 'utf8',
                         timeout: 5000,
                         stdio: ['ignore', 'pipe', 'ignore']
                     });
 
-                    if (result && result.includes('lazbuild')) {
+                    if (result && result.trim().length > 0) {
                         this.lazbuildPath = lazPath;
                         this.lazbuildChecked = true;
                         return true;
                     }
                 }
             } catch (error) {
-                // Continue checking other paths
+                // Continue checking other paths even if one fails
             }
         }
 
@@ -75,7 +76,7 @@ export class LazarusCompiler {
                         stdio: ['ignore', 'pipe', 'ignore']
                     });
 
-                    if (result && result.includes('lazbuild')) {
+                    if (result && result.trim().length > 0) {
                         this.lazbuildPath = lazBuildPath;
                         this.lazbuildChecked = true;
                         return true;
@@ -109,7 +110,8 @@ export class LazarusCompiler {
                 paths.push(
                     '/usr/local/bin/lazbuild',
                     '/opt/local/bin/lazbuild',
-                    '/Applications/Lazarus/lazbuild'
+                    '/Applications/Lazarus/lazbuild',
+                    '/Applications/lazarus/lazbuild'
                 );
                 break;
             case 'linux':
@@ -210,15 +212,21 @@ export class LazarusCompiler {
             const preferLazbuild = vscode.workspace.getConfiguration('fpctoolkit.lazarus').get<boolean>('preferLazbuild', true);
 
             if (preferLazbuild) {
-                // Try lazbuild first
+                // Try lazbuild 
                 const hasLazbuild = await this.checkLazbuildAvailability();
                 if (hasLazbuild) {
                     return this.buildWithLazbuild(projectFile, buildMode, workspaceRoot, forceRebuild);
+                } else {
+                    // No fallback for Lazarus projects if lazbuild is not found
+                    throw new Error('lazbuild not found. Please ensure Lazarus is installed and lazbuild is in your PATH, or set the Lazarus directory in settings.');
                 }
+            } else {
+                 // Even if not preferred, if it's a Lazarus project we should warn that FPC might fail
+                 return this.buildWithFpc(fpcPath, fpcArgs, workspaceRoot);
             }
         }
 
-        // Fallback to fpc
+        // Standard FPC build (not a Lazarus project)
         return this.buildWithFpc(fpcPath, fpcArgs, workspaceRoot);
     }
 }
