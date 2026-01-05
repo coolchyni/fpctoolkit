@@ -177,8 +177,8 @@ export class TLangClient implements ErrorHandler  {
             this.targetCPU = 'x86_64';
             if (plat === 'win32') {            // 检查是否有调试器附加
                 if(process.env.DEBUG_MODE==='true'){
-                    logger.appendLine("Debug mode detected, using paslsproxy.exe");
-                    extensionProcessName = 'debug/paslsproxy.exe';
+                    logger.appendLine("Debug mode detected, using pasls.exe");
+                    extensionProcessName = 'debug/pasls.exe';
                 }else{
                     extensionProcessName = 'win32/pasls.exe';
                 }
@@ -206,7 +206,7 @@ export class TLangClient implements ErrorHandler  {
                 this.targetOS = 'win32';
                 if(process.env.DEBUG_MODE==='true'){
                     logger.appendLine("Debug mode detected, using paslsproxy.exe");
-                    extensionProcessName = 'debug/paslsproxy.exe';
+                    extensionProcessName = 'debug/pasls.exe';
                 }else{
                     extensionProcessName = 'win32/pasls.exe';
                 }

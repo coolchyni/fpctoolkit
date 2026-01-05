@@ -21,6 +21,7 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
     protected process?: ChildProcess.ChildProcess;
     protected buffer: string = "";
     protected errbuf: string = "";
+    protected currentFile: string = "";
 
     protected diagMaps: Map<string, vscode.Diagnostic[]>;
     public args: string[] = [];
@@ -57,6 +58,7 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
     protected async doBuild(): Promise<number> {
         this.buffer = "";
         this.errbuf = "";
+        this.currentFile = "";
         this.diagMaps.clear();
 
         // Create output directories
@@ -127,7 +129,7 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
                 // Try to find the file using client
                 const unit = key.split(".").slice(0, -1).join(".");
                 let unitpath = '';
-                const unitpaths = await client.getUnitPath([unit]);
+                const unitpaths: string[] = await client.getUnitPath([unit]);
                 
                 if (unitpaths.length > 0) {
                     unitpath = unitpaths[0];
@@ -223,16 +225,38 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
      * Parse FPC-style error messages
      */
     protected parseFpcStyleError(line: string): boolean {
+        // Match "Compiling /path/to/file.pas" to establish context
+        const compileMatch = line.match(/^Compiling\s+(.*)/);
+        if (compileMatch) {
+            this.currentFile = compileMatch[1].trim();
+            this.emit(line);
+            return true;
+        }
+
         const reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/;
         const matches = reg.exec(line);
 
         if (matches) {
             const ln = Number(matches[5]);
             const col = Number(matches[7]) || 1;
-            const file = matches[1];
+            let file = matches[1];
             const level = matches[8];
             const msgcode = matches[9];
             const msg = matches[10];
+
+            // If the file in error is just a filename and matches our current context's basename,
+            // or if it's a relative path, try to use the currentFile context.
+            if (!path.isAbsolute(file)) {
+                if (this.currentFile && path.basename(this.currentFile) === path.basename(file)) {
+                    file = this.currentFile;
+                } else {
+                    // Try to find it in the workspace
+                    const uri = this.findFile(file);
+                    if (uri) {
+                        file = uri.fsPath;
+                    }
+                }
+            }
 
             const diag = new vscode.Diagnostic(
                 new vscode.Range(new vscode.Position(ln - 1, col - 1), new vscode.Position(ln - 1, col - 1)),
@@ -241,11 +265,11 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
             );
             diag.code = Number.parseInt(msgcode);
 
-            const basename = path.basename(file);
-            if (this.diagMaps?.has(basename)) {
-                this.diagMaps.get(basename)?.push(diag);
+            const fileKey = file; // Use the best path we have as the key
+            if (this.diagMaps?.has(fileKey)) {
+                this.diagMaps.get(fileKey)?.push(diag);
             } else {
-                this.diagMaps.set(basename, [diag]);
+                this.diagMaps.set(fileKey, [diag]);
             }
 
             if (diag.severity === vscode.DiagnosticSeverity.Error) {

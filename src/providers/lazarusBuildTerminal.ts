@@ -110,13 +110,16 @@ export class LazarusBuildTerminal extends BaseBuildTerminal {
     private processLazbuildLines(lines: string) {
         const lineArray = lines.split('\n');
         
-        for (const line of lineArray) {
-            // Try to parse FPC-style error messages that might be embedded in lazbuild output
+        for (let line of lineArray) {
+            line = line.trim();
+            if (!line) { continue; }
+
+            // Try to parse FPC-style error or "Compiling" context
             if (this.parseFpcStyleError(line)) {
                 continue;
             }
 
-            // Parse lazbuild output for errors and warnings
+            // Parse output for other errors and warnings
             if (line.includes('Error:') || line.includes('Fatal:')) {
                 this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
             } else if (line.includes('Warning:')) {
@@ -130,22 +133,6 @@ export class LazarusBuildTerminal extends BaseBuildTerminal {
     }
 
     private processFpcLines(lines: string) {
-        const lineArray = lines.split('\n');
-        
-        for (const line of lineArray) {
-            // Try to parse FPC-style error
-            if (this.parseFpcStyleError(line)) {
-                continue;
-            }
-            
-            // Handle other error/warning lines
-            if (line.startsWith('Error:') || line.startsWith('Fatal:')) {
-                this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
-            } else if (line.startsWith('Warning:')) {
-                this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.BrightYellow] }));
-            } else {
-                this.emit(line);
-            }
-        }
+        this.processLazbuildLines(lines);
     }
 }

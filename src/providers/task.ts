@@ -326,16 +326,21 @@ class FpcBuildTaskTerminal extends BaseBuildTerminal {
 		const ls = lines.split('\n');
 		
 		ls.forEach(line => {
-			// Try to parse FPC-style error
+			line = line.trim();
+			if (!line) { return; }
+
+			// Try to parse FPC-style error or "Compiling" context
 			if (this.parseFpcStyleError(line)) {
 				return;
 			}
 
-			// Handle other error/warning lines
+			// Handle other error/warning lines that don't match the standard format
 			if (line.startsWith('Error:') || line.startsWith('Fatal:')) {
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Red] }));
 			} else if (line.startsWith('Warning:')) {
 				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.BrightYellow] }));
+			} else if (line.startsWith('Note:') || line.startsWith('Hint:')) {
+				this.emit(TerminalEscape.apply({ msg: line, style: [TE_Style.Cyan] }));
 			} else {
 				this.emit(line);
 			}
