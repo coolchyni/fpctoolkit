@@ -111,7 +111,11 @@ export class CompileOption {
         });
 
         if (this.buildOption?.unitOutputDir) {
-            s += "-FU" + this.buildOption!.unitOutputDir + " ";
+            let unitOutputDir = this.buildOption!.unitOutputDir;
+            // Replace variables
+            unitOutputDir = unitOutputDir.replace(/\$\{targetOS\}/g, this.buildOption?.targetOS || process.platform);
+            unitOutputDir = unitOutputDir.replace(/\$\{targetCPU\}/g, this.buildOption?.targetCPU || process.arch);
+            s += "-FU" + unitOutputDir + " ";
         }
 
         if (this.buildOption?.optimizationLevel) {
