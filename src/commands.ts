@@ -462,16 +462,19 @@ export class FpcCommandManager {
     projectSetDefault = async (node: FpcItem) => {
         // If this is a task node (level 1), use its project task to set as default
         if (node.level === 1 && node.projectTask) {
-            node.projectTask.setAsDefault();
+            await node.projectTask.setAsDefault();
 
-            // Refresh the project explorer to update the UI
-            const { projectProvider } = require('./extension');
-            if (projectProvider) {
-                projectProvider.refresh();
+            // Refresh the project explorers to update the UI
+            const { fpcProvider, lazarusProvider } = require('./extension');
+            if (fpcProvider) {
+                fpcProvider.refresh();
+            }
+            if (lazarusProvider) {
+                lazarusProvider.refresh();
             }
 
             // Restart the client to apply changes
-            client.restart();
+            await client.restart();
             return;
         }
     };

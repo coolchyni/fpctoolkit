@@ -104,6 +104,13 @@ export class LazarusBuildModeTask implements IProjectTask {
     set isDefault(value: boolean) {
         if (value) {
             this.setAsDefault();
+        } else {
+            // If setting to false, only clear if it is currently the default
+            const storage = DefaultBuildModeStorage.getInstance();
+            if (storage.isDefaultBuildMode(this.id || '')) {
+                storage.setDefaultBuildMode("");
+                console.log(`Cleared Lazarus default build mode ${this.buildMode}`);
+            }
         }
     }
     
@@ -401,7 +408,7 @@ export class LazarusBuildModeTask implements IProjectTask {
      * Set this build mode as default
      * Use global persistent storage to manage default status
      */
-    setAsDefault(): void {
+    async setAsDefault(): Promise<void> {
         // Get global storage
         const storage = DefaultBuildModeStorage.getInstance();
         
@@ -420,7 +427,7 @@ export class LazarusBuildModeTask implements IProjectTask {
             
             // Clear default flag for all FPC tasks in tasks.json
             const config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(workspaceRoot));
-            const tasks = config.tasks || [];
+            const tasks = config.get<any[]>('tasks') || [];
             let tasksUpdated = false;
             
             for (let i = 0; i < tasks.length; i++) {
@@ -432,15 +439,12 @@ export class LazarusBuildModeTask implements IProjectTask {
             
             // If any tasks updated, save tasks.json
             if (tasksUpdated) {
-                config.update(
+                await config.update(
                     "tasks",
                     tasks,
                     vscode.ConfigurationTarget.WorkspaceFolder
-                ).then(() => {
-                    console.log('Cleared default status for all FPC tasks');
-                }, (error) => {
-                    console.error('Error updating tasks.json:', error);
-                });
+                );
+                console.log('Cleared default status for all FPC tasks');
             }
             
       

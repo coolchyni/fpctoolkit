@@ -59,6 +59,7 @@ export class FpcItem extends vscode.TreeItem {
         if (this.level > 0) {
             if (this.isDefault) {
                 this.description = 'default';
+                this.iconPath = new vscode.ThemeIcon('check', new vscode.ThemeColor('charts.green'));
             }
             // Add command to open the file when clicking on the item
             const command = {
@@ -78,7 +79,7 @@ export class FpcItem extends vscode.TreeItem {
                 // FPC project icon
                 this.iconPath = path.join(__dirname, '..', 'images', 'pascal-project.png');
             }
-        } else {
+        } else if (!this.isDefault) { // Only set these icons if NOT a default task (which already has a check icon)
             // Build mode or task icon
             if (projectType === ProjectType.Lazarus) {
                 this.iconPath = new vscode.ThemeIcon('gear');

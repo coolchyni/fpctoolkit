@@ -15,7 +15,7 @@ export interface IProjectTask {
     getTask(): Promise<vscode.Task> | vscode.Task;
     getCompileOption(workspaceRoot: string): CompileOption;  // Get compile options for this project
     getTreeItem(): vscode.TreeItem;                          // Get tree item for display in TreeDataProvider
-    setAsDefault(): void;
+    setAsDefault(): Promise<void> | void;
 }
 export interface IProjectIntf {
     // Common properties

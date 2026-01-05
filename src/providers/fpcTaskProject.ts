@@ -131,7 +131,12 @@ export class FpcTask implements IProjectTask {
      * Set this task as the default task
      * Updates the task.json file to mark this task as default
      */
-    setAsDefault(): void {
+    async setAsDefault(): Promise<void> {
+        // If this is an auto-generated task (label is [default]), ensure it's saved to tasks.json
+        if (this.label === '[default]' && this.project.file) {
+            await this.ensureTaskInTasksJson();
+        }
+
         this.isDefault = true;
         
         // Clear any Lazarus build mode defaults
@@ -150,8 +155,9 @@ export class FpcTask implements IProjectTask {
                 const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
                 if (workspaceRoot) {
                     const config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(workspaceRoot));
-                    const tasks = config.tasks || [];
+                    const tasks = config.get<any[]>('tasks') || [];
 
+                    let tasksUpdated = false;
                     // Find and update the task in the tasks array
                     for (const task of tasks) {
                         if (task.type === 'fpc') {
@@ -162,28 +168,29 @@ export class FpcTask implements IProjectTask {
                                 } else {
                                     task.group.isDefault = true;
                                 }
+                                tasksUpdated = true;
                             } else {
                                 // Clear default flag from other tasks
                                 if (task.group && task.group.isDefault) {
                                     task.group.isDefault = undefined;
+                                    tasksUpdated = true;
                                 }
                             }
                         }
                     }
 
                     // Update the configuration
-                    config.update(
-                        "tasks",
-                        tasks,
-                        vscode.ConfigurationTarget.WorkspaceFolder
-                    ).then(() => {
+                    if (tasksUpdated) {
+                        await config.update(
+                            "tasks",
+                            tasks,
+                            vscode.ConfigurationTarget.WorkspaceFolder
+                        );
                         console.log(`Set FPC task ${this.label} as default`);
-                    }, (error) => {
-                        console.error(`Error setting FPC task ${this.label} as default:`, error);
-                    });
+                    }
                 }
             } catch (error) {
-                console.error(`Error setting FPC task ${this.label} as default:`, error);
+                console.error('Error setting FPC task as default:', error);
             }
         }
     }

@@ -10,6 +10,7 @@ import { FpcTask, FpcTaskProject } from './fpcTaskProject';
 import { FpcItem } from './fpcItem';
 import { ProjectType } from './projectType';
 import { LazarusBuildModeTask } from './lazarusBuildModeTask';
+import { DefaultBuildModeStorage } from './defaultBuildModeStorage';
 import { Message } from 'vscode-languageclient';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
@@ -25,7 +26,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	private defaultCompileOption?: CompileOption = undefined;
 	private timeout?: NodeJS.Timeout = undefined;
 	private _hasSourceFileChanged: boolean = false; // Flag indicating whether source files have changed
-	private _projectInfosMap: Map<string, IProjectIntf> = new Map(); // Store parsed project interfaces
+	public _projectInfosMap: Map<string, IProjectIntf> = new Map(); // Store parsed project interfaces
 	constructor(private workspaceRoot: string, context: vscode.ExtensionContext, private projectTypeFilter?: ProjectType) {
 		const subscriptions = context.subscriptions;
 		const name = 'FpcProjectExplorer';
@@ -338,7 +339,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		let defaultTask: IProjectTask | undefined;
 
-		// 1. Find default task in FPC projects
+		// 1. Find default task in current items
 		for (const item of itemMaps.values()) {
 			if (item.project?.tasks) {
 				for (const task of item.project.tasks) {
@@ -351,8 +352,23 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			}
 		}
 
-		// 2. If still not found, use the first task as default
+		// 2. If no default task found in current items, check if a default exists in OTHER types
 		if (!defaultTask) {
+			// 2.1 Check if any Lazarus project is default globally
+			const storage = DefaultBuildModeStorage.getInstance();
+			if (storage.getDefaultBuildMode()) {
+				return;
+			}
+
+			// 2.2 Check if any FPC project is default in tasks.json
+			if (this.config?.tasks) {
+				const hasFpcDefault = this.config.tasks.some((t: any) => t.type === 'fpc' && t.group?.isDefault);
+				if (hasFpcDefault) {
+					return;
+				}
+			}
+
+			// 3. Fallback: Only if no default exists anywhere, use the first task as default
 			for (const item of itemMaps.values()) {
 				if (item.project?.tasks && item.project.tasks.length > 0) {
 					defaultTask = item.project.tasks[0];
@@ -363,7 +379,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		// Apply default status
 		if (defaultTask) {
-			// Clear default status for all projects
+			// Clear default status for all current projects
 			for (const item of itemMaps.values()) {
 				if (item.project?.tasks) {
 					for (const task of item.project.tasks) {
@@ -374,7 +390,6 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 			// Set default project and task
 			defaultTask.isDefault = true;
-			
 		}
 	}
 
@@ -478,7 +493,28 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	}
 
 	async GetDefaultTaskOption(): Promise<CompileOption> {
-		// Check if we have a default FPC item with project interface
+		// 1. Check if there is a Lazarus default build mode
+		const storage = DefaultBuildModeStorage.getInstance();
+		const lazarusDefaultId = storage.getDefaultBuildMode();
+		if (lazarusDefaultId) {
+			const { lazarusProvider } = require('../extension');
+			const targetProvider = lazarusProvider || this;
+			
+			// Search in all cached Lazarus project infos
+			for (const projectInfo of targetProvider._projectInfosMap.values()) {
+				if (projectInfo.tasks) {
+					for (const task of projectInfo.tasks) {
+						if (task instanceof LazarusBuildModeTask && task.id === lazarusDefaultId) {
+							const opt = task.getCompileOption(this.workspaceRoot);
+							this.defaultCompileOption = opt;
+							return opt;
+						}
+					}
+				}
+			}
+		}
+
+		// 2. Check if we have a default FPC item with project interface
 		if (this.defaultFpcItem?.project && this.defaultFpcItem.project.tasks && this.defaultFpcItem.project.tasks.length > 0) {
 			// Use the first task's compile options
 			const opt = this.defaultFpcItem.project.tasks[0].getCompileOption(this.workspaceRoot);
@@ -486,7 +522,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			return opt;
 		}
 
-		//refresh tasks
+		// Refresh tasks from tasks.json
 		await vscode.tasks.fetchTasks({ type: 'fpc' });
 
 		let cfg = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
