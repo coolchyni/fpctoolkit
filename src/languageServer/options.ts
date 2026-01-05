@@ -37,7 +37,14 @@ export class CompileOption {
             this.buildOption = taskDefinition.buildOption;
             if(workspaceRoot){
                 if (taskDefinition.cwd) {
-                    this.cwd = path.join(workspaceRoot, taskDefinition.cwd);
+                    let rawCwd = taskDefinition.cwd;
+                    if (rawCwd.includes('${workspaceFolder}')) {
+                        this.cwd = rawCwd.replace(/\$\{workspaceFolder\}/g, workspaceRoot);
+                    } else if (path.isAbsolute(rawCwd)) {
+                        this.cwd = rawCwd;
+                    } else {
+                        this.cwd = path.join(workspaceRoot, rawCwd);
+                    }
                 } else {
                     this.cwd = workspaceRoot;
                 }
@@ -105,6 +112,9 @@ export class CompileOption {
 
         this.buildOption?.searchPath?.forEach((e) => {
             s += "-Fu" + e + " ";
+        });
+        this.buildOption?.includePath?.forEach((e) => {
+            s += "-Fi" + e + " ";
         });
         this.buildOption?.libPath?.forEach((e) => {
             s += "-Fl" + e + " ";

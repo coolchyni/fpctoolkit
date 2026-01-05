@@ -125,6 +125,11 @@
         "title": "%project.setdefault%"
       },
       {
+        "command": "fpctoolkit.lazarus.convertToFpc",
+        "title": "Convert to FPC Project",
+        "category": "FPCToolkit"
+      },
+      {
         "command": "fpctoolkit.project.openWithLazarus",
         "title": "Open with Lazarus",
         "icon": "$(link-external)"
@@ -379,6 +384,11 @@
           "command": "fpctoolkit.project.build",
           "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && (viewItem==fpcbuild || viewItem==lazarusbuildmode)",
           "group": "inline"
+        },
+        {
+          "command": "fpctoolkit.lazarus.convertToFpc",
+          "when": "(view == FpcProjectExplorer || view == LazarusProjectExplorer) && viewItem == lazarusbuildmode",
+          "group": "fpcprojectcfg@5"
         }
       ],
       "view/title": [

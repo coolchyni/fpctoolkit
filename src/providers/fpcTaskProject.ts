@@ -97,11 +97,12 @@ export class FpcTask implements IProjectTask {
             if (!existingTask) {
                 // Create a new task definition
                 const path = require('path');
+                const relFile = path.isAbsolute(this.project.file) ? path.relative(workspaceRoot, this.project.file) : this.project.file;
                 const fileName = path.basename(this.project.file, path.extname(this.project.file));
                 const newTask = {
                     type: 'fpc',
                     label: fileName,
-                    file: this.project.file,
+                    file: relFile,
                     buildOption: {
                         unitOutputDir: './bin/${targetOS}-${targetCPU}'
                     },

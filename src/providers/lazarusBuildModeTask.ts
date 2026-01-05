@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { CompileOption } from '../languageServer/options';
 import { IProjectIntf, IProjectTask } from './projectIntf';
 import { LazarusProject } from './lazarus';
@@ -246,20 +247,14 @@ export class LazarusBuildModeTask implements IProjectTask {
      * @param workspaceRoot Workspace root path
      * @returns FpcTaskDefinition object
      */
-    private createTaskDefinition(workspaceRoot: string): FpcTaskDefinition {
+    public createTaskDefinition(workspaceRoot: string): FpcTaskDefinition {
         // Create task definition
         const taskDef = new FpcTaskDefinition();
-        const mainFile = (this.project as LazarusProject).mainFile || '';
-        taskDef.file = LazarusVariableSubstitution.substitute(mainFile);
-        
-        // Set working directory as project directory
-        taskDef.cwd = workspaceRoot;
-        
-        // Initialize variable substitution system
-        const projectFile = (this.project as LazarusProject).mainFile || '';
+        const projectDir = path.dirname(this.project.file);
+        const projectFile = path.basename(this.project.file);
         const projectName = projectFile.replace(/\.(lpr|lpi)$/i, '');
-        
-        // Create a build mode object for variable substitution
+
+        // Initialize variable substitution system with proper project directory
         const buildModeForSubstitution = {
             targetOS: this.targetOS,
             targetCPU: this.targetCPU,
@@ -267,21 +262,42 @@ export class LazarusBuildModeTask implements IProjectTask {
         };
         
         LazarusVariableSubstitution.initialize(
-            buildModeForSubstitution as any, // Pass build mode info for variable substitution
-            workspaceRoot,
+            buildModeForSubstitution as any, 
+            projectDir,
             projectName,
             projectFile,
-            this.targetFile, // Use target file extracted from build mode
+            this.targetFile,
             this.outputDirectory
         );
+
+        // Helper to resolve variables and relativize to workspace root
+        const resolveAndRelativize = (input: string) => {
+            if (!input) return input;
+            const substituted = LazarusVariableSubstitution.substitute(input);
+            const absolute = path.isAbsolute(substituted) ? substituted : path.resolve(projectDir, substituted);
+            return path.relative(workspaceRoot, absolute);
+        };
+
+        const mainFile = (this.project as LazarusProject).mainFile || '';
+        taskDef.file = resolveAndRelativize(mainFile);
+        
+        // Set working directory default to workspace root (handled by task provider)
         
         // Create build option
         const buildOption = new BuildOption();
         
-        // Fill BuildOption from detailed build options
+        // Explicitly copy supported BuildOption fields from detailed build options
         if (this.detailedBuildOptions) {
-            // Copy all detailed options to BuildOption (except those converted to customOptions)
-            Object.assign(buildOption, this.detailedBuildOptions);
+            const supportedFields: (keyof BuildOption)[] = [
+                'targetOS', 'targetCPU', 'optimizationLevel', 
+                'syntaxMode', 'forceRebuild', 'msgIgnore'
+            ];
+            
+            supportedFields.forEach(field => {
+                if ((this.detailedBuildOptions as any)[field] !== undefined) {
+                    (buildOption as any)[field] = (this.detailedBuildOptions as any)[field];
+                }
+            });
         }
         
         // Convert detailed build options to custom compiler options
@@ -300,50 +316,43 @@ export class LazarusBuildModeTask implements IProjectTask {
             );
         }
         
-        // Add include paths to compiler options (using -Fi parameter)
+        // Add include paths
         if (this.includePaths && this.includePaths.length > 0) {
-            const includeOptions = this.includePaths.map(path => 
-                `-Fi${LazarusVariableSubstitution.substitute(path)}`
-            );
-            buildOption.customOptions = (buildOption.customOptions || []).concat(includeOptions);
+            buildOption.includePath = this.includePaths.map(resolveAndRelativize);
         }
         
         // Add search paths and perform variable substitution
         if (this.unitPaths && this.unitPaths.length > 0) {
-            buildOption.searchPath = this.unitPaths.map(path => 
-                LazarusVariableSubstitution.substitute(path)
-            );
+            buildOption.searchPath = this.unitPaths.map(resolveAndRelativize);
+        } else {
+            buildOption.searchPath = [];
+        }
+        
+        // Ensure the project directory itself is in the search path
+        // This helps FPC find the main .lpr file when executing from workspace root
+        const relProjDir = path.relative(workspaceRoot, projectDir) || '.';
+        if (!buildOption.searchPath.includes(relProjDir)) {
+            buildOption.searchPath.unshift(relProjDir);
         }
         
         // Add library paths and perform variable substitution
         if (this.libraryPaths && this.libraryPaths.length > 0) {
-            buildOption.libPath = this.libraryPaths.map(path => 
-                LazarusVariableSubstitution.substitute(path)
-            );
+            buildOption.libPath = this.libraryPaths.map(resolveAndRelativize);
         }
         
-        // Add output directory and perform variable substitution
-        if (this.outputDirectory) {
-            buildOption.unitOutputDir = LazarusVariableSubstitution.substitute(this.outputDirectory);
+        // Handle output directory
+        let outDir = this.outputDirectory || this.objectPath;
+        if (outDir) {
+            buildOption.unitOutputDir = resolveAndRelativize(outDir);
         }
         
-        // If object path exists, set as output directory and perform variable substitution
-        if (this.objectPath) {
-            buildOption.unitOutputDir = LazarusVariableSubstitution.substitute(this.objectPath);
-        }
+        // Add target platform
+        buildOption.targetOS = buildOption.targetOS || this.targetOS;
+        buildOption.targetCPU = buildOption.targetCPU || this.targetCPU;
         
-        // Add target platform (prefer value from detailed options)
-        if (buildOption.targetOS || this.targetOS) {
-            buildOption.targetOS = buildOption.targetOS || this.targetOS;
-        }
-        
-        if (buildOption.targetCPU || this.targetCPU) {
-            buildOption.targetCPU = buildOption.targetCPU || this.targetCPU;
-        }
-        
-        // Set output file name (from Lazarus project <Target><Filename Value="..."/>)
+        // Set output file name
         if (this.targetFile) {
-            buildOption.outputFile = LazarusVariableSubstitution.substitute(this.targetFile);
+            buildOption.outputFile = resolveAndRelativize(this.targetFile);
         } 
         if(this.useLCL){
             buildOption?.customOptions?.push('-dLCL');

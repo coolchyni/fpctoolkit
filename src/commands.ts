@@ -4,10 +4,11 @@ import { ProjectType } from './providers/projectType';
 import * as fs from 'fs';
 import * as fs2 from 'fs-extra';
 import path = require('path');
-import { BuildMode, FpcTask, taskProvider } from './providers/task';
+import { BuildMode, FpcTask, taskProvider, FpcTaskDefinition } from './providers/task';
 import { client } from './extension';
 import { TextEditor, TextEditorEdit } from 'vscode';
 import { ProjectTemplateManager, ProjectTemplate } from './providers/projectTemplate';
+import { LazarusBuildModeTask } from './providers/lazarusBuildModeTask';
 
 export class FpcCommandManager {
     // Static variable for storing extension context
@@ -43,6 +44,7 @@ export class FpcCommandManager {
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.add', this.ProjectAdd));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.setdefault', this.projectSetDefault));
         context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.project.openWithLazarus', this.openWithLazarus));
+        context.subscriptions.push(vscode.commands.registerCommand('fpctoolkit.lazarus.convertToFpc', this.lazarusConvertToFpc));
 
         context.subscriptions.push(vscode.commands.registerTextEditorCommand('fpctoolkit.code.complete', this.CodeComplete));
     }
@@ -502,6 +504,40 @@ export class FpcCommandManager {
             //vscode.window.showInformationMessage(`Opening ${path.basename(projectFile)} with default application...`);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to open with default application: ${error}`);
+        }
+    };
+
+    lazarusConvertToFpc = async (node: FpcItem) => {
+        // Ensure this is a Lazarus build mode node
+        if (node.level === 1 && node.projectType === ProjectType.Lazarus && node.projectTask instanceof LazarusBuildModeTask) {
+            const task = node.projectTask;
+            const taskDef = task.createTaskDefinition(this.workspaceRoot);
+            
+            // Set a meaningful label
+            const projectName = path.basename(node.file, path.extname(node.file));
+            taskDef.label = `${projectName}-${task.label}`;
+            
+            try {
+                // Get tasks.json configuration
+                const config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(this.workspaceRoot));
+                const tasks = config.get<any[]>('tasks') || [];
+                
+                // Add the new task definition
+                tasks.push(taskDef);
+                
+                // Update tasks.json
+                await config.update('tasks', tasks, vscode.ConfigurationTarget.WorkspaceFolder);
+                
+                vscode.window.showInformationMessage(`Successfully converted Lazarus build mode "${task.label}" to FPC project task.`);
+                
+                // Refresh the FPC project explorer to show the new task
+                const { fpcProvider } = require('./extension');
+                if (fpcProvider) {
+                    fpcProvider.refresh();
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to convert Lazarus build mode: ${error}`);
+            }
         }
     };
 

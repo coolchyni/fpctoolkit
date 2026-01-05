@@ -28,6 +28,7 @@ export class BuildOption {
 	cwd?: string;
 	objectPath?: string;
 	cleanExt?: string;
+	includePath?: string[];
 };
 
 export class BuildEvent{
@@ -87,7 +88,14 @@ export class FpcTaskProvider implements vscode.TaskProvider {
 			if (file) {
 				const definition: FpcTaskDefinition = <any>_task.definition;
 				if (_task.definition.cwd) {
-					this.cwd = this.workspaceRoot + '/' + _task.definition.cwd;
+					let rawCwd = _task.definition.cwd;
+					if (rawCwd.includes('${workspaceFolder}')) {
+						this.cwd = rawCwd.replace(/\$\{workspaceFolder\}/g, this.workspaceRoot);
+					} else if (path.isAbsolute(rawCwd)) {
+						this.cwd = rawCwd;
+					} else {
+						this.cwd = path.join(this.workspaceRoot, rawCwd);
+					}
 				}
 				let task = this.getTask(_task.name, definition.file, definition);
 				this.taskMap.set(_task.name, task);
@@ -265,12 +273,13 @@ export class FpcTask extends vscode.Task {
 				}
 				
 				// Set arguments based on terminal type
+				const mainFileForCmd = taskDefinition?.file;
 				if (terminal instanceof LazarusBuildTerminal) {
 					// For Lazarus projects, the terminal handles compilation strategy internally
-					terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+					terminal.args = `${mainFileForCmd} ${buildOptionString}`.split(' ');
 				} else {
 					// For FPC projects, use traditional approach
-					terminal.args = `${taskDefinition?.file} ${buildOptionString}`.split(' ');
+					terminal.args = `${mainFileForCmd} ${buildOptionString}`.split(' ');
 					if (this._BuildMode == BuildMode.rebuild) {
 						terminal.args.push('-B');
 					}
