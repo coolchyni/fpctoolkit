@@ -192,6 +192,15 @@ export class InitializationOptions {
     // ignores completion items like "begin" and "var" which may interfer with IDE snippets
     public ignoreTextCompletions: boolean | undefined;
 
+    // enable features in client profile
+    //'flatSymbolMode'                 force flat symbol mode (SymbolInformation[])
+    //'excludeSectionContainers'       don't include interface/implementation section containers
+    //'excludeInterfaceMethodDecls'    don't include method/function/procedure declarations from interface section
+    //'excludeImplClassDefs'           don't include class definitions from implementation section
+    //'nullDocumentVersion'            use nil instead of 0 for document version
+    //'filterTextOnly'                 only set filterText in completion, not label
+    public clientProfileEnableFeatures: Array<string> = ['nullDocumentVersion'];
+
     constructor() {
         let cfg = vscode.workspace.getConfiguration('fpctoolkit.lsp.initializationOptions');
         this.program = cfg.get<string>('program');

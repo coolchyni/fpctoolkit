@@ -73,6 +73,51 @@ interface SetSelectionParams {
 }
 const SetSelectionNotification: NotificationType<SetSelectionParams> = new NotificationType<SetSelectionParams>('pasls/setSelection');
 
+function getLazarusConfigPath(): string | undefined {
+    const plat = process.platform;
+    if (plat === 'win32') {
+        const appData = process.env.APPDATA;
+        if (appData) {
+            return path.join(appData, 'lazarus', 'environmentoptions.xml');
+        }
+    } else {
+        const home = process.env.HOME;
+        if (home) {
+            return path.join(home, '.lazarus', 'environmentoptions.xml');
+        }
+    }
+    return undefined;
+}
+
+function readLazarusConfig(userEnvironmentVariables: { [key: string]: string | undefined }) {
+    const configPath = getLazarusConfigPath();
+    if (configPath && fs.existsSync(configPath)) {
+        try {
+            const content = fs.readFileSync(configPath, 'utf8');
+            
+            // Extract LazarusDirectory
+            const lazDirMatch = content.match(/<LazarusDirectory[^>]*Value=["']([^"']+)["']/i);
+            if (lazDirMatch && !userEnvironmentVariables['LAZARUSDIR']) {
+                userEnvironmentVariables['LAZARUSDIR'] = lazDirMatch[1];
+            }
+
+            // Extract CompilerFilename (PP)
+            const ppMatch = content.match(/<CompilerFilename[^>]*Value=["']([^"']+)["']/i);
+            if (ppMatch && !userEnvironmentVariables['PP']) {
+                userEnvironmentVariables['PP'] = ppMatch[1];
+            }
+
+            // Extract FPCSourceDirectory (FPCDIR)
+            const fpcDirMatch = content.match(/<FPCSourceDirectory[^>]*Value=["']([^"']+)["']/i);
+            if (fpcDirMatch && !userEnvironmentVariables['FPCDIR']) {
+                userEnvironmentVariables['FPCDIR'] = fpcDirMatch[1];
+            }
+        } catch (err) {
+            logger.appendLine(`Error reading Lazarus config: ${err}`);
+        }
+    }
+}
+
 function GetEnvironmentVariables(): { [key: string]: string | undefined } {
     // load environment variables from settings which are used for CodeTools
     const plat = process.platform;
@@ -115,20 +160,36 @@ function GetEnvironmentVariables(): { [key: string]: string | undefined } {
             }
         } else {
             let dirs = ['/usr/bin/fpc', '/usr/local/bin/fpc'];
-            let ver_test = new RegExp('\d+\.\d+\.\d+');
+            if (plat === 'darwin') {
+                dirs.push('/Applications/Lazarus/fpc/bin/x86_64-darwin/fpc');
+            }
+            
             for (const _dir of dirs) {
                 if (fs.existsSync(_dir)) {
-                    userEnvironmentVariables['PP'] = _dir;
+                    if (!userEnvironmentVariables['PP']) {
+                        userEnvironmentVariables['PP'] = _dir;
+                    }
                 }
             }
             if (fs.existsSync('/usr/local/share/fpcsrc')) {
-                userEnvironmentVariables['FPCDIR'] = '/usr/local/share/fpcsrc';
+                if (!userEnvironmentVariables['FPCDIR']) {
+                    userEnvironmentVariables['FPCDIR'] = '/usr/local/share/fpcsrc';
+                }
             }
+        }
+
+        // Try reading from Lazarus config if still missing
+        readLazarusConfig(userEnvironmentVariables);
+
+        // Final fallback for Mac Lazarus
+        if (plat === 'darwin' && !userEnvironmentVariables['LAZARUSDIR'] && fs.existsSync('/Applications/Lazarus')) {
+            userEnvironmentVariables['LAZARUSDIR'] = '/Applications/Lazarus';
         }
     }
 
-    env['PP'] = userEnvironmentVariables['PP'];
-    env['LAZARUSDIR'] = userEnvironmentVariables['LAZARUSDIR'];
+    if (userEnvironmentVariables['PP']) env['PP'] = userEnvironmentVariables['PP'];
+    if (userEnvironmentVariables['LAZARUSDIR']) env['LAZARUSDIR'] = userEnvironmentVariables['LAZARUSDIR'];
+    if (userEnvironmentVariables['FPCDIR']) env['FPCDIR'] = userEnvironmentVariables['FPCDIR'];
 
     return userEnvironmentVariables;
 }
@@ -351,11 +412,17 @@ export class TLangClient implements ErrorHandler  {
 
         console.log("executable: " + executable);
 
+        const envVars = GetEnvironmentVariables();
+        if (!envVars['FPCDIR']) {
+            vscode.window.showErrorMessage('FPCDIR 没有设置，请在设置中设置 FPCDIR 路径 (fpctoolkit.env)');
+            return;
+        }
+
         let run: Executable = {
             command: executable,
             //args: ["-l","log.txt"],
             options: {
-                env: GetEnvironmentVariables()
+                env: envVars
             }
         };
         let debug: Executable = run;

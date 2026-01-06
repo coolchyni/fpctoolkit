@@ -356,8 +356,8 @@ export class LazarusUtils {
         return result;
     }
     /**
-     * 获取目标操作系统和 CPU 的系统默认值
-     * @returns 包含默认目标操作系统和 CPU 的对象
+     * Get system defaults for target OS and CPU
+     * @returns Object containing default target OS, CPU, Lazarus directory and FPC version
      */
     public static getSystemDefaults(): {
         targetOS: string,
@@ -365,12 +365,60 @@ export class LazarusUtils {
         lazarusDir?: string,
         fpcVersion?: string
     } {
+        this.detectSystemInfo();
         return {
             targetOS: this.getDefaultTargetOS(),
             targetCPU: this.getDefaultTargetCPU(),
             lazarusDir: this.cachedSystemInfo.lazarusDir,
             fpcVersion: this.cachedSystemInfo.fpcVersion
         };
+    }
+
+    /**
+     * Detect system information (Lazarus directory, FPC version)
+     */
+    private static detectSystemInfo(): void {
+        if (this.cachedSystemInfo.lazarusDir && this.cachedSystemInfo.fpcVersion) {
+            return;
+        }
+
+        const plat = os.platform();
+        let lazDir: string | undefined;
+        let fpcVer: string | undefined;
+
+        // Try to read from environmentoptions.xml
+        let configPath: string | undefined;
+        if (plat === 'win32') {
+            const appData = process.env.APPDATA;
+            if (appData) configPath = path.join(appData, 'lazarus', 'environmentoptions.xml');
+        } else {
+            const home = os.homedir();
+            configPath = path.join(home, '.lazarus', 'environmentoptions.xml');
+        }
+
+        if (configPath && fs.existsSync(configPath)) {
+            try {
+                const content = fs.readFileSync(configPath, 'utf8');
+                const lazDirMatch = content.match(/<LazarusDirectory[^>]*Value=["']([^"']+)["']/i);
+                if (lazDirMatch) lazDir = lazDirMatch[1];
+
+                const fpcSrcMatch = content.match(/<FPCSourceDirectory[^>]*Value=["']([^"']+)["']/i);
+                if (fpcSrcMatch) fpcVer = fpcSrcMatch[1];
+            } catch (err) {}
+        }
+
+        // Fallback for Mac
+        if (plat === 'darwin') {
+            if (!lazDir && fs.existsSync('/Applications/Lazarus')) {
+                lazDir = '/Applications/Lazarus';
+            }
+            if (!fpcVer && fs.existsSync('/usr/local/share/fpcsrc')) {
+                fpcVer = '/usr/local/share/fpcsrc';
+            }
+        }
+
+        this.cachedSystemInfo.lazarusDir = lazDir;
+        this.cachedSystemInfo.fpcVersion = fpcVer;
     }
 
     /**
