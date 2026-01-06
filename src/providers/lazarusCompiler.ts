@@ -204,8 +204,8 @@ export class LazarusCompiler {
         fpcArgs: string[],
         forceRebuild: boolean = false
     ): Promise<CompilerResult> {
-        // Check if this is a Lazarus project file
-        const isLazarusProject = projectFile.toLowerCase().endsWith('.lpi');
+        // Check if this is a Lazarus project or package file
+        const isLazarusProject = projectFile.toLowerCase().endsWith('.lpi') || projectFile.toLowerCase().endsWith('.lpk');
 
         if (isLazarusProject) {
             // Check user preference for lazbuild

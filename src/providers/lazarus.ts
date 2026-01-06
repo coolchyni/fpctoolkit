@@ -12,6 +12,8 @@ export class LazarusProject implements IProjectIntf {
     title: string;           // Project title
     mainFile: string;        // Main program file
     requiredPackages: string[] = []; // Required package list
+    packageSearchPaths: string[] = []; // Inherited search paths from packages
+    packageIncludePaths: string[] = []; // Inherited include paths from packages
 
     // IProjectIntf implementation
     label: string;           // Display name
@@ -353,7 +355,6 @@ export class LazarusUtils {
 
         return result;
     }
-
     /**
      * 获取目标操作系统和 CPU 的系统默认值
      * @returns 包含默认目标操作系统和 CPU 的对象
@@ -370,6 +371,118 @@ export class LazarusUtils {
             lazarusDir: this.cachedSystemInfo.lazarusDir,
             fpcVersion: this.cachedSystemInfo.fpcVersion
         };
+    }
+
+    /**
+     * Resolve package name to .lpk file path
+     * @param packageName Package name
+     * @param projectDir Project directory
+     * @returns .lpk file path or null
+     */
+    public static resolvePackageLpk(packageName: string, projectDir: string): string | null {
+        // 1. Check project directory
+        let lpkPath = path.join(projectDir, packageName + '.lpk');
+        if (fs.existsSync(lpkPath)) return lpkPath;
+
+        // 2. Check sibling directories
+        const parentDir = path.dirname(projectDir);
+        try {
+            const dirs = fs.readdirSync(parentDir, { withFileTypes: true });
+            for (const dir of dirs) {
+                if (dir.isDirectory()) {
+                    const candidate = path.join(parentDir, dir.name, packageName + '.lpk');
+                    if (fs.existsSync(candidate)) return candidate;
+                }
+            }
+        } catch (e) {}
+
+        // 3. Search up to 2 levels in parent directory for more flexibility
+        try {
+            const grandParentDir = path.dirname(parentDir);
+            const dirs = fs.readdirSync(grandParentDir, { withFileTypes: true });
+            for (const dir of dirs) {
+                if (dir.isDirectory()) {
+                     const candidate = path.join(grandParentDir, dir.name, packageName + '.lpk');
+                     if (fs.existsSync(candidate)) return candidate;
+                     
+                     // Deep check one more level
+                     try {
+                        const subDirs = fs.readdirSync(candidate.replace(packageName + '.lpk', ''), { withFileTypes: true });
+                        for(const sub of subDirs) {
+                            if(sub.isDirectory()) {
+                                const deepCandidate = path.join(grandParentDir, dir.name, sub.name, packageName + '.lpk');
+                                if (fs.existsSync(deepCandidate)) return deepCandidate;
+                            }
+                        }
+                     }catch(ee){}
+                }
+            }
+        } catch (e) {}
+
+        return null;
+    }
+
+    /**
+     * Parse .lpk file and extract UsageOptions (UnitPath and IncludeFiles)
+     * @param lpkFilePath Path to .lpk file
+     * @returns Object containing unitPaths and includePaths
+     */
+    public static parseLpkUsageOptions(lpkFilePath: string): { unitPaths: string[], includePaths: string[] } {
+        const result: { unitPaths: string[], includePaths: string[] } = { unitPaths: [], includePaths: [] };
+        try {
+            const content = fs.readFileSync(lpkFilePath, 'utf8');
+            const lpkDir = path.dirname(lpkFilePath);
+
+            // 1. Extract PkgOutDir (from CompilerOptions -> UnitOutputDirectory)
+            let pkgOutDir = "lib/$(TargetCPU)-$(TargetOS)"; // default Lazarus convention
+            const outDirMatch = content.match(/<UnitOutputDirectory[^>]*Value=["']([^"']*)["']/i);
+            if (outDirMatch && outDirMatch[1]) {
+                pkgOutDir = outDirMatch[1];
+            }
+
+            // 2. Extract UsageOptions section
+            const usageOptionsMatch = content.match(/<UsageOptions[^>]*>([\s\S]*?)<\/UsageOptions>/i);
+            if (usageOptionsMatch) {
+                const usageSection = usageOptionsMatch[1];
+
+                const resolveVars = (p: string) => {
+                    // Substitute Lazarus variables with absolute paths or VS Code variables
+                    let substituted = p.replace(/\$\(PkgDir\)/g, lpkDir);
+                    substituted = substituted.replace(/\$\(PkgOutDir\)/g, pkgOutDir);
+                    
+                    // Convert Lazarus $(Var) to VS Code ${var} format for CPU/OS
+                    substituted = substituted.replace(/\$\(TargetCPU\)/g, "${targetCPU}");
+                    substituted = substituted.replace(/\$\(TargetOS\)/g, "${targetOS}");
+
+                    if (path.isAbsolute(substituted) || substituted.startsWith('${')) {
+                        return substituted;
+                    }
+                    return path.resolve(lpkDir, substituted);
+                };
+
+                // Extract UnitPath
+                const unitPathMatch = usageSection.match(/<UnitPath[^>]*Value=["']([^"']*)["']/i);
+                if (unitPathMatch && unitPathMatch[1]) {
+                    const rawPaths = unitPathMatch[1].split(';').filter(Boolean);
+                    result.unitPaths = rawPaths.map(resolveVars);
+                }
+
+                // Extract IncludeFiles
+                const includePathsMatch = usageSection.match(/<IncludeFiles[^>]*Value=["']([^"']*)["']/i);
+                if (includePathsMatch && includePathsMatch[1]) {
+                    const rawPaths = includePathsMatch[1].split(';').filter(Boolean);
+                    result.includePaths = rawPaths.map(resolveVars);
+                }
+                
+                // Also add the package source directory itself as a fallback search path
+                if (!result.unitPaths.includes(lpkDir)) {
+                    result.unitPaths.unshift(lpkDir);
+                }
+            }
+        } catch (error) {
+            console.error(`Error parsing .lpk file ${lpkFilePath}:`, error);
+        }
+        return result;
     }
 }
 
@@ -1086,6 +1199,31 @@ export class LazarusProjectParser {
                 
                 if (packageNames.length > 0) {
                     LazarusUtils.logInfo(`Total required packages found: ${packageNames.length} - ${packageNames.join(', ')}`);
+                    
+                    // 为自定义包解析 LPK 文件并注入搜索路径
+                    const projectDir = path.dirname(projectInfo.file);
+                    for (const pkgName of packageNames) {
+                        // 跳过内置的标准包（启发式判断，通常首字母大写且较短或众所周知）
+                        if (['LCL', 'FCL', 'LCLBase', 'LazUtils', 'Codetools'].includes(pkgName)) continue;
+                        
+                        const lpkPath = LazarusUtils.resolvePackageLpk(pkgName, projectDir);
+                        if (lpkPath) {
+                            LazarusUtils.logInfo(`Resolved .lpk for package ${pkgName}: ${lpkPath}`);
+                            const usage = LazarusUtils.parseLpkUsageOptions(lpkPath);
+                            
+                            // 合并路径
+                            usage.unitPaths.forEach(p => {
+                                if (!projectInfo.packageSearchPaths.includes(p)) {
+                                    projectInfo.packageSearchPaths.push(p);
+                                }
+                            });
+                            usage.includePaths.forEach(p => {
+                                if (!projectInfo.packageIncludePaths.includes(p)) {
+                                    projectInfo.packageIncludePaths.push(p);
+                                }
+                            });
+                        }
+                    }
                 }
             }
         } catch (error) {
@@ -1094,6 +1232,91 @@ export class LazarusProjectParser {
             projectInfo.requiredPackages = [];
         }
     }
+    /**
+     * Parse Lazarus package file (.lpk) and extract project information
+     * @param lpkFilePath Path to the .lpk file
+     * @returns Project interface object
+     */
+    public static parseLpkFile(lpkFilePath: string): IProjectIntf {
+        try {
+            // Check if file exists
+            if (!fs.existsSync(lpkFilePath)) {
+                return this.createDefaultProjectInfo(lpkFilePath);
+            }
 
-    
+            // Read .lpk file content
+            const lpkContent = fs.readFileSync(lpkFilePath, 'utf8');
+            const projectTitle = path.basename(lpkFilePath, '.lpk');
+            
+            // Create XML parser
+            const parser = new XMLParser({
+                ignoreAttributes: false,
+                attributeNamePrefix: '@_',
+                allowBooleanAttributes: true,
+                parseAttributeValue: true,
+                trimValues: true
+            });
+
+            let lpkXmlObj;
+            try {
+                lpkXmlObj = parser.parse(lpkContent);
+            } catch (parseError) {
+                LazarusUtils.logError(`Error parsing XML in Lazarus package file: ${lpkFilePath}`, parseError);
+                return this.createDefaultProjectInfo(lpkFilePath);
+            }
+
+            const packageConfig = lpkXmlObj.CONFIG || lpkXmlObj.Package;
+            
+            // Create main project info object
+            const projectInfo = new LazarusProject(
+                projectTitle,
+                '', // Packages don't have a single main .lpr file
+                lpkFilePath,
+                false
+            );
+
+            if (packageConfig) {
+                // Extract required packages
+                this.extractRequiredPackages(packageConfig, projectInfo);
+            }
+
+            // Get system defaults
+            const systemDefaults = LazarusUtils.getSystemDefaults();
+            
+            // Create a default build mode for the package
+            const buildMode = new LazarusBuildModeTask(
+                'Compile Package',
+                true, // Default task for the package
+                true,
+                projectInfo,
+                'Default',
+                systemDefaults.targetOS,
+                systemDefaults.targetCPU
+            );
+
+            // Extract compiler options for the package
+            // In .lpk, CompilerOptions is usually directly under Package
+            const compilerOptionsMatch = lpkContent.match(/<CompilerOptions[^>]*>([\s\S]*?)<\/CompilerOptions>/i);
+            if (compilerOptionsMatch) {
+                // We use "" as buildModeName to trigger the global fallback in getCompilerSectionForBuildMode
+                this.extractDetailedBuildOptionsForBuildMode(buildMode, lpkContent);
+                
+                // Extract search paths
+                const searchPaths = this.extractSearchPathsForBuildMode(lpkContent, "");
+                buildMode.unitPaths = searchPaths.unitPaths;
+                buildMode.includePaths = searchPaths.includePaths;
+                buildMode.libraryPaths = searchPaths.libraryPaths;
+                buildMode.outputDirectory = searchPaths.outputDirectory;
+                buildMode.objectPath = searchPaths.objectPath;
+            }
+
+            // Add task to project
+            projectInfo.tasks.push(buildMode);
+
+            return projectInfo;
+        } catch (error) {
+            LazarusUtils.logError(`Error parsing Lazarus package file: ${lpkFilePath}`, error);
+            return this.createDefaultProjectInfo(lpkFilePath);
+        }
+    }
 }

@@ -319,6 +319,15 @@ export class LazarusBuildModeTask implements IProjectTask {
         // Add include paths
         if (this.includePaths && this.includePaths.length > 0) {
             buildOption.includePath = this.includePaths.map(resolveAndRelativize);
+        } else {
+            buildOption.includePath = [];
+        }
+        
+        // Add include paths from required packages
+        const lazProject = this.project as LazarusProject;
+        if (lazProject.packageIncludePaths && lazProject.packageIncludePaths.length > 0) {
+            const pkgIncPaths = lazProject.packageIncludePaths.map(resolveAndRelativize);
+            buildOption.includePath = (buildOption.includePath || []).concat(pkgIncPaths);
         }
         
         // Add search paths and perform variable substitution
@@ -333,6 +342,12 @@ export class LazarusBuildModeTask implements IProjectTask {
         const relProjDir = path.relative(workspaceRoot, projectDir) || '.';
         if (!buildOption.searchPath.includes(relProjDir)) {
             buildOption.searchPath.unshift(relProjDir);
+        }
+
+        // Add search paths from required packages
+        if (lazProject.packageSearchPaths && lazProject.packageSearchPaths.length > 0) {
+            const pkgPaths = lazProject.packageSearchPaths.map(resolveAndRelativize);
+            buildOption.searchPath = (buildOption.searchPath || []).concat(pkgPaths);
         }
         
         // Add library paths and perform variable substitution

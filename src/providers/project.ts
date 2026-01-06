@@ -53,8 +53,8 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			this.refresh();
 		});
 
-		// Monitor Lazarus project files
-		this.watchlpi = vscode.workspace.createFileSystemWatcher("**/*.lpi", false, false, false);
+		// Monitor Lazarus project and package files
+		this.watchlpi = vscode.workspace.createFileSystemWatcher("**/*.{lpi,lpk}", false, false, false);
 		this.watchlpi.onDidCreate(() => {
 			this._projectInfosMap.clear(); // Clear cache when new project is created
 			this.refresh();
@@ -96,19 +96,25 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	 * @param lpiPath Path to the LPI file
 	 * @returns Parsed project interface
 	 */
-	private parseAndCacheProjectInfos(lpiPath: string): IProjectIntf {
+	private parseAndCacheProjectInfos(projectPath: string): IProjectIntf {
 		try {
-			const projectIntf = LazarusProjectParser.parseLpiFile(lpiPath);
+			let projectIntf: IProjectIntf | undefined;
+			if (projectPath.toLowerCase().endsWith('.lpi')) {
+				projectIntf = LazarusProjectParser.parseLpiFile(projectPath);
+			} else if (projectPath.toLowerCase().endsWith('.lpk')) {
+				projectIntf = LazarusProjectParser.parseLpkFile(projectPath);
+			}
+
 			if (projectIntf) {
-				this._projectInfosMap.set(lpiPath, projectIntf);
+				this._projectInfosMap.set(projectPath, projectIntf);
 				return projectIntf;
 			}
 		} catch (error) {
-			console.error(`Error parsing LPI file ${lpiPath}:`, error);
+			console.error(`Error parsing project file ${projectPath}:`, error);
 		}
 		// Create a default project info if parsing fails
-		const defaultProjectInfo = LazarusProjectParser.createDefaultProjectInfo(lpiPath);
-		this._projectInfosMap.set(lpiPath, defaultProjectInfo);
+		const defaultProjectInfo = LazarusProjectParser.createDefaultProjectInfo(projectPath);
+		this._projectInfosMap.set(projectPath, defaultProjectInfo);
 		return defaultProjectInfo;
 	}
 
@@ -209,7 +215,7 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 			// Find all .lpr, .dpr, and .lpi files in the workspace
 			// Pass null to exclude to respect files.exclude and .gitignore (if configured)
 			const files = await vscode.workspace.findFiles(
-				new vscode.RelativePattern(workspaceFolder, "**/*.{lpr,dpr,lpi}"),
+				new vscode.RelativePattern(workspaceFolder, "**/*.{lpr,dpr,lpi,lpk}"),
 				null
 			);
 
@@ -229,6 +235,16 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 				}
 				// Handle .lpi files (Lazarus projects) - only if Lazarus support is enabled
 				else if (absolutePath.toLowerCase().endsWith('.lpi')) {
+					if (this.projectTypeFilter === undefined || this.projectTypeFilter === ProjectType.Lazarus) {
+						const config = vscode.workspace.getConfiguration('fpctoolkit');
+						const lazarusEnabled = config.get<boolean>('lazarus.enabled', true);
+						if (lazarusEnabled) {
+							this.collectLazarusProject(absolutePath, itemMaps, workspaceFolder, relativePath);
+						}
+					}
+				}
+				// Handle .lpk files (Lazarus packages)
+				else if (absolutePath.toLowerCase().endsWith('.lpk')) {
 					if (this.projectTypeFilter === undefined || this.projectTypeFilter === ProjectType.Lazarus) {
 						const config = vscode.workspace.getConfiguration('fpctoolkit');
 						const lazarusEnabled = config.get<boolean>('lazarus.enabled', true);
