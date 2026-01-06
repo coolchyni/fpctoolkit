@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.2.2] - 2025-01-06
+### add:
+- Optimize the handling of the Lazarus project.
+
 ## [1.2.1] - 2025-08-15
 ### add:
 - Support for use lazbuild in Lazarus projects
