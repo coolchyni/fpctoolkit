@@ -1,0 +1,4 @@
+{
+    "FPCDIR is not set or invalid. Please set the FPCDIR path in settings (fpctoolkit.env)": "FPCDIR 没有设置或无效，请在设置中设置 FPCDIR 路径 (fpctoolkit.env)",
+    "Open Settings": "打开设置"
+}

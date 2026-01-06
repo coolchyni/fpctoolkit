@@ -413,8 +413,17 @@ export class TLangClient implements ErrorHandler  {
         console.log("executable: " + executable);
 
         const envVars = GetEnvironmentVariables();
-        if (!envVars['FPCDIR']) {
-            vscode.window.showErrorMessage('FPCDIR 没有设置，请在设置中设置 FPCDIR 路径 (fpctoolkit.env)');
+        const fpcDir = envVars['FPCDIR'];
+        if (!fpcDir || !fs.existsSync(fpcDir) || !fs.lstatSync(fpcDir).isDirectory()) {
+            const openSettings = vscode.l10n.t("Open Settings");
+            vscode.window.showErrorMessage(
+                vscode.l10n.t("FPCDIR is not set or invalid. Please set the FPCDIR path in settings (fpctoolkit.env)"),
+                openSettings
+            ).then(selection => {
+                if (selection === openSettings) {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'fpctoolkit.env.FPCDIR');
+                }
+            });
             return;
         }
 

@@ -17,7 +17,7 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"env": {
-				"DEBUG_MODE":"true"
+				"DEBUG_MODE":"false"
 			},
 			"preLaunchTask": "npm: esbuild"
 		},
