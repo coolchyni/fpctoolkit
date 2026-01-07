@@ -25,7 +25,9 @@ import {
     ErrorAction,
     CloseHandlerResult,
     CloseAction,
-    Trace} from 'vscode-languageclient/node';
+    Trace,
+    StreamInfo} from 'vscode-languageclient/node';
+import * as net from 'net';
 
 import { FpcProjectProvider } from '../providers/project';
 import * as util from '../common/util';
@@ -235,15 +237,11 @@ export class TLangClient implements ErrorHandler  {
 
         const plat: NodeJS.Platform = process.platform;
         const arch = process.arch;
+     
         if (arch === 'x64') {
             this.targetCPU = 'x86_64';
             if (plat === 'win32') {            // 检查是否有调试器附加
-                if(process.env.DEBUG_MODE==='true'){
-                    logger.appendLine("Debug mode detected, using pasls.exe");
-                    extensionProcessName = 'debug/pasls.exe';
-                }else{
-                    extensionProcessName = 'win32/pasls.exe';
-                }
+                extensionProcessName = 'win32/pasls.exe';
                 this.targetOS = 'win64';
             } else if (plat === 'linux') {
                 extensionProcessName = 'x86_64-linux/pasls';
@@ -266,18 +264,21 @@ export class TLangClient implements ErrorHandler  {
             }
             else if (plat == 'win32') {
                 this.targetOS = 'win32';
-                if(process.env.DEBUG_MODE==='true'){
-                    logger.appendLine("Debug mode detected, using paslsproxy.exe");
-                    extensionProcessName = 'debug/pasls.exe';
-                }else{
-                    extensionProcessName = 'win32/pasls.exe';
-                }
+                extensionProcessName = 'win32/pasls.exe';
             } else {
                 throw "Invalid Platform";
             }
         } else {
             throw "Invalid arch";
         }
+        if(process.env.DEBUG_MODE==='true'){
+            if(plat==='win32')  {
+                extensionProcessName = 'debug/paslsproxy.exe';
+            }else{
+                extensionProcessName = 'debug/paslsproxy';
+            }
+        }
+        
         if(paslspath && paslspath.length>0){
             return paslspath;
         }
@@ -429,40 +430,31 @@ export class TLangClient implements ErrorHandler  {
             return;
         }
 
-        let run: Executable = {
-            command: executable,
-            //args: ["-l","log.txt"],
-            options: {
-                env: envVars
-            }
-        };
-        let debug: Executable = run;
-
-        let serverOptions: ServerOptions = {
-            run,
-            debug
-        };
-
-        //Connect to language server via socket
-
-        //rpcjson
-        // The server is a started as a separate app and listens on port 5007
-        //  let connectionInfo = {
-        //     port: 9999
-        // };
-        // let serverOptions = () => {
-
-        //     let socket = net.connect(connectionInfo);
-        // 	socket.on("data",(data:Buffer)=>{
-        // 		console.info(data.toString());
-        // 	});
-
-        //     let result: StreamInfo = {
-        //         writer: socket,
-        //         reader: socket
+        let serverOptions: ServerOptions;
+        // if (process.env.DEBUG_MODE === 'true') {
+        //     const port = 9898;
+        //     logger.appendLine(`Debug mode detected, connecting to language server on port ${port}`);
+        //     serverOptions = () => {
+        //         let socket = net.connect({ port });
+        //         let result: StreamInfo = {
+        //             writer: socket,
+        //             reader: socket
+        //         };
+        //         return Promise.resolve(result);
         //     };
-        //     return Promise.resolve(result);
-        // };
+        // } else {
+            let run: Executable = {
+                command: executable,
+                //args: ["-l","log.txt"],
+                options: {
+                    env: envVars
+                }
+            };
+            serverOptions = {
+                run,
+                debug: run
+            };
+        //}
 
         var initializationOptions = new InitializationOptions();
 
@@ -487,7 +479,6 @@ export class TLangClient implements ErrorHandler  {
         }
 
         this.client = new LanguageClient('fpctoolkit.lsp', 'Free Pascal Language Server', serverOptions, clientOptions);
-  
     };
     public onDidChangeVisibleTextEditor(editor: vscode.TextEditor): void {
 
