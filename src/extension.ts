@@ -5,14 +5,13 @@ import { ProjectType } from './providers/projectType';
 import { diagCollection, FpcTaskProvider, taskProvider, FpcTask, BuildMode } from './providers/task';
 import { FpcCommandManager } from './commands';
 import * as util from './common/util';
-import { TLangClient } from './languageServer/client';
-import { configuration } from './common/configuration';
-import { JediFormatter } from './formatter';
+import type { TLangClient } from './languageServer/client';
+import type { JediFormatter } from './formatter';
+import type { McpManager } from './mcp';
 import * as MyCodeAction from './languageServer/codeaction';
+import { configuration } from './common/configuration';
 import * as path from 'path';
 import * as fs from 'fs';
-import { McpManager } from './mcp';
-import { version } from 'os';
 export let client: TLangClient;
 export let formatter: JediFormatter;
 export let logger: vscode.OutputChannel;
@@ -30,8 +29,8 @@ async function initializeHeavyComponentsAsync(
     context: vscode.ExtensionContext,
     workspaceRoot: string
 ): Promise<void> {
-    // Give VS Code time to complete extension activation
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Yield to the event loop to allow activation to complete immediately
+    await new Promise(resolve => setImmediate(resolve));
 
     try {
         // Initialize components in parallel with error handling for each
@@ -39,6 +38,7 @@ async function initializeHeavyComponentsAsync(
             // Language Server
             (async () => {
                 try {
+                    const { TLangClient } = require('./languageServer/client');
                     client = new TLangClient(projectProvider);
                     await client.doInit();
                     await client.start();
@@ -53,8 +53,9 @@ async function initializeHeavyComponentsAsync(
             (async () => {
                 try {
                     const config = vscode.workspace.getConfiguration('fpctoolkit');
-                    const mcpEnabled = config.get<boolean>('mcp.enabled', true);
+                    const mcpEnabled = config.get<boolean>('mcp.enabled', false); // Default to false
                     if (mcpEnabled) {
+                        const { McpManager } = require('./mcp');
                         mcpManager = new McpManager(context, workspaceRoot);
                         await mcpManager.initialize(projectProvider);
                         logger.appendLine('MCP manager initialized successfully');
@@ -68,6 +69,7 @@ async function initializeHeavyComponentsAsync(
             // Formatter
             (async () => {
                 try {
+                    const { JediFormatter } = require('./formatter');
                     formatter = new JediFormatter();
                     formatter.doInit();
                     logger.appendLine('Formatter initialized successfully');
@@ -353,6 +355,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (newMcpEnabled && !mcpManager) {
                     // MCP was enabled, initialize it
                     try {
+                        const { McpManager } = require('./mcp');
                         mcpManager = new McpManager(context, workspaceRoot);
                         await mcpManager.initialize(projectProvider);
                     } catch (error) {

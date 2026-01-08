@@ -498,7 +498,7 @@
           },
           "fpctoolkit.mcp.enabled": {
             "type": "boolean",
-            "default": true,
+            "default": false,
             "description": "%config.mcp.enabled%"
           },
           "fpctoolkit.mcp.autoRegister": {
