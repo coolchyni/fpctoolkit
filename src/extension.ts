@@ -41,7 +41,7 @@ async function initializeHeavyComponentsAsync(
                 try {
                     client = new TLangClient(projectProvider);
                     await client.doInit();
-                    client.start();
+                    await client.start();
                     logger.appendLine('Language server initialized successfully');
                 } catch (error) {
                     logger.appendLine(`Language server initialization failed: ${error}`);

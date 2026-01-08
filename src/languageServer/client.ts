@@ -232,6 +232,8 @@ export class TLangClient implements ErrorHandler  {
     private targetOS?: string;
     private targetCPU?: string;
     private inactiveRegionsDecorations = new Map<string, DecorationRangesPair>();
+    private initLock: Promise<void> = Promise.resolve();
+
     constructor(
         public projProvider: FpcProjectProvider
     ) {
@@ -424,15 +426,37 @@ export class TLangClient implements ErrorHandler  {
 
     }
     async doInit() {
-        //lsp
+        const currentLock = this.initLock;
+        let resolveLock: () => void;
+        this.initLock = new Promise(resolve => resolveLock = resolve);
+        await currentLock;
+        try {
+            await this._doInit();
+        } finally {
+            resolveLock!();
+        }
+    }
+
+    private async _doInit() {
+        if (this.client) {
+            await this.stopInternal();
+        }
 
         console.log("Greetings from pascal-language-server 🙏");
-
-        // Load the path to the language server from settings
-        //let executable: string = workspace.getConfiguration('pascalLanguageServer').get("executable")!;
         let executable: string = this.getLanguageServerFileName();
+        logger.appendLine(`Testing executable at: ${executable}`);
+
+        if (!fs.existsSync(executable)) {
+            logger.appendLine(`Error: Language server binary not found at ${executable}`);
+            return;
+        }
+
         if(process.platform!='win32'){
-            fs.chmod(executable,755);
+            try {
+                fs.chmodSync(executable, 0o755);
+            } catch (e) {
+                logger.appendLine(`Warning: Failed to set permissions on ${executable}: ${e}`);
+            }
         }
         // TODO: download the executable for the active platform
         // https://github.com/genericptr/pascal-language-server/releases/download/x86_64-darwin/pasls
@@ -444,6 +468,10 @@ export class TLangClient implements ErrorHandler  {
         console.log("executable: " + executable);
 
         const envVars = GetEnvironmentVariables();
+        logger.appendLine(`Environment PP: ${envVars['PP']}`);
+        logger.appendLine(`Environment FPCDIR: ${envVars['FPCDIR']}`);
+        logger.appendLine(`Environment LAZARUSDIR: ${envVars['LAZARUSDIR']}`);
+
         const fpcDir = envVars['FPCDIR'];
         logger.appendLine("fpcDir: " + fpcDir);
         if (!fpcDir || !fs.existsSync(fpcDir) || !fs.lstatSync(fpcDir).isDirectory()) {
@@ -523,6 +551,46 @@ export class TLangClient implements ErrorHandler  {
 
         this.client = new LanguageClient('fpctoolkit.lsp', 'Free Pascal Language Server', serverOptions, clientOptions);
     };
+
+    /**
+     * Stop the client if it exists. (Internal use)
+     */
+    private async stopInternal(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        try {
+            // Cannot stop if it's currently starting. Wait for it to become Running.
+            if (this.client.state === State.Starting) {
+                logger.appendLine("Client is starting, waiting for it to become running before stopping...");
+                let count = 0;
+                while (this.client.state === State.Starting && count < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Wait up to 5 seconds
+                    count++;
+                }
+            }
+
+            if (this.client.state === State.Running) {
+                logger.appendLine("Stopping language server...");
+                await this.client.stop(10000);
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.appendLine(`Failed to stop language client: ${message}`);
+        } finally {
+            try {
+                this.client?.dispose();
+                logger.appendLine("Language client disposed.");
+            } catch (e) {
+                logger.appendLine(`Error disposing client: ${e}`);
+            }
+            this.client = undefined;
+            // Clear decorations
+            this.inactiveRegionsDecorations.forEach(value => value.decoration.dispose());
+            this.inactiveRegionsDecorations.clear();
+        }
+    }
     public onDidChangeVisibleTextEditor(editor: vscode.TextEditor): void {
 
         // Apply text decorations to inactive regions
@@ -534,28 +602,62 @@ export class TLangClient implements ErrorHandler  {
     }
 
     async start(): Promise<void> {
-        await this.client?.start();
-        await this.doOnReady();
+        const currentLock = this.initLock;
+        let resolveLock: () => void;
+        this.initLock = new Promise(resolve => resolveLock = resolve);
+        await currentLock;
+        try {
+            await this._startInternal();
+        } finally {
+            resolveLock!();
+        }
     };
-    async stop(): Promise<void> {
+
+    private async _startInternal(): Promise<void> {
         if (!this.client) {
+            logger.appendLine("Cannot start: client is undefined. Call doInit first.");
             return;
         }
         try {
-            await this.client.stop(10000);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            logger.appendLine(`Failed to stop language client: ${message}`);
+            if (this.client.state === State.Running) {
+                return;
+            }
+            logger.appendLine("Starting language client...");
+            await this.client.start();
+            logger.appendLine("Language client started successfully.");
+            await this.doOnReady();
+        } catch (e) {
+            logger.appendLine(`Critical: Failed to start language client: ${e}`);
+            throw e;
+        }
+    }
+
+    async stop(): Promise<void> {
+        const currentLock = this.initLock;
+        let resolveLock: () => void;
+        this.initLock = new Promise(resolve => resolveLock = resolve);
+        await currentLock;
+        try {
+            await this.stopInternal();
+        } finally {
+            resolveLock!();
         }
     };
 
     async restart(): Promise<void> {
-
-        await this.stop();
-        await this.doInit();
-        await this.client?.start();
-        await this.doOnReady();
-
+        const currentLock = this.initLock;
+        let resolveLock: () => void;
+        this.initLock = new Promise(resolve => resolveLock = resolve);
+        await currentLock;
+        try {
+            await this.stopInternal();
+            // Give the OS some time to release the files/ports
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await this._doInit();
+            await this._startInternal();
+        } finally {
+            resolveLock!();
+        }
     };
 
     async doCodeComplete(editor:vscode.TextEditor): Promise<void> {
