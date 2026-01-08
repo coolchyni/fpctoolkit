@@ -36,6 +36,7 @@ import { env } from 'process';
 import * as fs from 'fs-extra';
 import { client, logger } from '../extension';
 import { ClientRequest } from 'http';
+import * as cp from 'child_process';
 
 interface InputRegion {
     startLine: number;
@@ -196,6 +197,33 @@ function GetEnvironmentVariables(): { [key: string]: string | undefined } {
 
     return userEnvironmentVariables;
 }
+
+async function getGlobalUnitPaths(ppPath: string, targetOS?: string, targetCPU?: string, cwd?: string): Promise<string[]> {
+    return new Promise((resolve) => {
+        const dummyFile = 'be19131e-4503-4c54-9549-9f79c6d338e9.pas';
+        let args = ['-vt', dummyFile];
+        if (targetOS) args.push(`-T${targetOS}`);
+        if (targetCPU) args.push(`-P${targetCPU}`);
+
+        cp.exec(`"${ppPath}" ${args.join(' ')}`, { cwd: cwd }, (error, stdout, stderr) => {
+            const unitPaths: string[] = [];
+            const lines = (stdout + stderr).split('\n');
+            const unitPathRegex = /Using unit path:\s*(.*)/;
+            
+            for (const line of lines) {
+                const match = line.match(unitPathRegex);
+                if (match && match[1]) {
+                    const p = path.resolve(match[1].trim());
+                    if (p && !unitPaths.includes(p)) {
+                        unitPaths.push(p);
+                    }
+                }
+            }
+            resolve(unitPaths);
+        });
+    });
+}
+
 interface myConfiguration extends vscode.WorkspaceConfiguration {
     cwd: string;
 }
@@ -466,6 +494,20 @@ export class TLangClient implements ErrorHandler  {
             opt.buildOption!.targetCPU = this.targetCPU;
             opt.buildOption!.targetOS = this.targetOS;
         }
+
+        // Get global unit paths
+        const globalUnitPaths = await getGlobalUnitPaths(
+            envVars['PP'] || 'fpc',
+            opt.buildOption?.targetOS || this.targetOS,
+            opt.buildOption?.targetCPU || this.targetCPU,
+            opt.cwd
+        );
+        globalUnitPaths.forEach(p => {
+            const fu = `-Fu${p}`;
+            if (!initializationOptions.fpcOptions.includes(fu)) {
+                initializationOptions.fpcOptions.push(fu);
+            }
+        });
 
         // client extensions configure their server
         let clientOptions: LanguageClientOptions = {
