@@ -90,13 +90,13 @@ export class FpcTask implements IProjectTask {
             const tasks = config.get<any[]>('tasks') || [];
 
             // Check if a task for this file already exists
+            const path = require('path');
             const existingTask = tasks.find(task => 
-                task.type === 'fpc' && task.file === this.project.file
+                task.type === 'fpc' && path.basename(task.file) === path.basename(this.project.file)
             );
 
             if (!existingTask) {
                 // Create a new task definition
-                const path = require('path');
                 const relFile = path.isAbsolute(this.project.file) ? path.relative(workspaceRoot, this.project.file) : this.project.file;
                 const fileName = path.basename(this.project.file, path.extname(this.project.file));
                 const newTask = {
@@ -158,11 +158,12 @@ export class FpcTask implements IProjectTask {
                     const config = vscode.workspace.getConfiguration('tasks', vscode.Uri.file(workspaceRoot));
                     const tasks = config.get<any[]>('tasks') || [];
 
+                    const path = require('path');
                     let tasksUpdated = false;
                     // Find and update the task in the tasks array
                     for (const task of tasks) {
                         if (task.type === 'fpc') {
-                            if (task.label === this.label && task.file === this.project.file) {
+                            if (task.label === this.label && path.basename(task.file) === path.basename(this.project.file)) {
                                 // Set this task as default
                                 if (!task.group) {
                                     task.group = { kind: 'build', isDefault: true };
