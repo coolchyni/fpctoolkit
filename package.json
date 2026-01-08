@@ -31,9 +31,6 @@
     "url": "https://github.com/coolchyni/fpctoolkit/issues"
   },
   "activationEvents": [
-    "onView:FpcProjectExplorer",
-    "onView:LazarusProjectExplorer",
-    "onLanguage:objectpascal",
     "onDebug"
   ],
   "main": "./dist/extension.js",

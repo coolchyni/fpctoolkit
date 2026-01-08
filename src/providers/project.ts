@@ -12,6 +12,7 @@ import { ProjectType } from './projectType';
 import { LazarusBuildModeTask } from './lazarusBuildModeTask';
 import { DefaultBuildModeStorage } from './defaultBuildModeStorage';
 import { Message } from 'vscode-languageclient';
+import { ProjectScanner } from './projectScanner';
 
 export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
@@ -47,23 +48,28 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 
 		this.watchlpr = vscode.workspace.createFileSystemWatcher("**/*.lpr", false, true, false);
 		this.watchlpr.onDidCreate(() => {
+			ProjectScanner.getInstance().clearCache();
 			this.refresh();
 		});
 		this.watchlpr.onDidDelete(() => {
+			ProjectScanner.getInstance().clearCache();
 			this.refresh();
 		});
 
 		// Monitor Lazarus project and package files
 		this.watchlpi = vscode.workspace.createFileSystemWatcher("**/*.{lpi,lpk}", false, false, false);
 		this.watchlpi.onDidCreate(() => {
+			ProjectScanner.getInstance().clearCache();
 			this._projectInfosMap.clear(); // Clear cache when new project is created
 			this.refresh();
 		});
 		this.watchlpi.onDidDelete(() => {
+			ProjectScanner.getInstance().clearCache();
 			this._projectInfosMap.clear(); // Clear cache when project is deleted
 			this.refresh();
 		});
 		this.watchlpi.onDidChange(() => {
+			ProjectScanner.getInstance().clearCache();
 			this._projectInfosMap.clear(); // Clear cache when project is modified
 			this.refresh();
 		});
@@ -212,19 +218,17 @@ export class FpcProjectProvider implements vscode.TreeDataProvider<FpcItem> {
 	 */
 	private async collectProjectsFromWorkspace(workspaceFolder: vscode.WorkspaceFolder, itemMaps: Map<string, FpcItem>): Promise<void> {
 		try {
-			// Find all .lpr, .dpr, and .lpi files in the workspace
-			// Pass null to exclude to respect files.exclude and .gitignore (if configured)
-			const files = await vscode.workspace.findFiles(
-				new vscode.RelativePattern(workspaceFolder, "**/*.{lpr,dpr,lpi,lpk}"),
-				null
-			);
-
-			// Update Lazarus project existence context
-			const hasLpi = files.some(file => file.fsPath.toLowerCase().endsWith('.lpi'));
-			vscode.commands.executeCommand('setContext', 'fpctoolkit.lazarus.hasProjects', hasLpi);
+			// Use centralized ProjectScanner instead of redundant findFiles
+			const files = await ProjectScanner.getInstance().scan();
 
 			for (const fileUri of files) {
 				const absolutePath = fileUri.fsPath;
+				
+				// Ensure the file is within the current workspaceFolder
+				if (!absolutePath.startsWith(workspaceFolder.uri.fsPath)) {
+					continue;
+				}
+
 				const relativePath = path.relative(workspaceFolder.uri.fsPath, absolutePath);
 				
 				// Handle .lpr and .dpr files (FPC projects)
