@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.2.3] - 2026-01-08
+### add:
+- add fpc global unit path to the search path
+
 ## [1.2.2] - 2025-01-06
 ### add:
 - Optimize the handling of the Lazarus project.
