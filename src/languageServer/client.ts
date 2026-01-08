@@ -324,33 +324,34 @@ export class TLangClient implements ErrorHandler  {
                     vscode.window.showWarningMessage(e.message);
                     break;
                 case MessageType.Error:
-                    if ((e as any).hasFile) {
-                        let f = e.message.split('@')
-                        let file = f[0].split(' ')[0];
-                        let pos = f[1].split(':');
+                    let msg = e.message;
+                    if(msg.startsWith('⚠️')){
+                        msg=msg.substring(2).trim();
+                    }
+                    if (msg.includes('@') && msg.includes(':')) {
+                        // Format: '... file: "..." @ line:col;'
+                        let parts = msg.split('@');
+                        let contentPart = parts[0].trim();
+                        let posPart = parts[1].trim().replace(';', '');
 
-                        let position: vscode.Position = new vscode.Position(Number.parseInt(pos[0]), Number.parseInt(pos[1]));
+                        let file = contentPart.split(':')[0].trim();
+                        
+                        let pos = posPart.split(':');
+                        let position: vscode.Position = new vscode.Position(Number.parseInt(pos[0]) - 1, Number.parseInt(pos[1]) - 1);
 
-                        let diag=new vscode.Diagnostic(new vscode.Range(position,position),e.message);
-                    
-                        this.client?.diagnostics?.set( vscode.Uri.parse(file),[diag]);
-                    
+                        let diag = new vscode.Diagnostic(new vscode.Range(position, position), msg);
+                        this.client?.diagnostics?.set(vscode.Uri.file(file), [diag]);
 
-                        vscode.window.showErrorMessage(e.message, 'View Error').then(item => {
+                        vscode.window.showErrorMessage(msg, 'View Error').then(item => {
                             if (item === 'View Error') {
                                 vscode.workspace.openTextDocument(file).then(doc => {
-
-                                    let position: vscode.Position = new vscode.Position(Number.parseInt(pos[0]), Number.parseInt(pos[1]));
                                     vscode.window.showTextDocument(doc, { selection: new vscode.Selection(position, position) });
                                 });
-
                             }
-
                         });
-
                     } else {
                         logger.appendLine(e.message);
-                        //vscode.window.showErrorMessage(e.message);
+                        vscode.window.showErrorMessage(e.message);
                     }
 
 
