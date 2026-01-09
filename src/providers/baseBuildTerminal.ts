@@ -214,7 +214,8 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
      */
     protected parseFpcStyleError(line: string): boolean {
         // Match "Compiling /path/to/file.pas" to establish context
-        const compileMatch = line.match(/^Compiling\s+(.*)/);
+        // Support optional message ID prefix like (3104) Compiling ... or 3104) Compiling ...
+        const compileMatch = line.match(/^(?:\(?\d+\)?\s+)?Compiling\s+(.*)/);
         if (compileMatch) {
             this.currentFile = compileMatch[1].trim();
             this.emit(line);
@@ -238,10 +239,25 @@ export abstract class BaseBuildTerminal implements vscode.Pseudoterminal, vscode
                 if (this.currentFile && path.basename(this.currentFile) === path.basename(file)) {
                     file = this.currentFile;
                 } else {
-                    // Try to find it in the workspace
-                    const uri = this.findFile(file);
-                    if (uri) {
-                        file = uri.fsPath;
+                    // Try to find it relative to the current file being compiled
+                    if (this.currentFile) {
+                        const dir = path.dirname(this.currentFile);
+                        const suspectedPath = path.join(dir, file);
+                        if (fs.existsSync(suspectedPath)) {
+                            file = suspectedPath;
+                        } else {
+                            // Try to find it in the workspace
+                            const uri = this.findFile(file);
+                            if (uri) {
+                                file = uri.fsPath;
+                            }
+                        }
+                    } else {
+                        // Try to find it in the workspace
+                        const uri = this.findFile(file);
+                        if (uri) {
+                            file = uri.fsPath;
+                        }
                     }
                 }
             }

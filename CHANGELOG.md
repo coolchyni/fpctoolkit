@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [1.2.4] - 2026-01-09
+### fixed:
+- fix path resolution issue
+
 ## [1.2.3] - 2026-01-08
 ### add:
 - add fpc global unit path to the search path
