@@ -18,7 +18,7 @@ jobs:
   release:
     strategy:
       matrix:
-        target: [win32-x64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
+        target: [win32-x64, win32-arm64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
     
     runs-on: ubuntu-latest
 
@@ -42,6 +42,7 @@ jobs:
         run: |
           case "${{ matrix.target }}" in
             win32-x64)     KEEP="win32" ;;
+            win32-arm64)   KEEP="win32" ;;
             linux-x64)     KEEP="x86_64-linux" ;;
             linux-arm64)   KEEP="aarch64-linux" ;;
             darwin-x64)    KEEP="x86_64-darwin" ;;
