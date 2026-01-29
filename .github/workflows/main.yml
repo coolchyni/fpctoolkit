@@ -1,65 +1,100 @@
-# This is a basic workflow to help you get started with Actions
+# Publish FpcToolKit to VS Code Marketplace and GitHub Releases
 
 name: Publish FpcToolKit
 
-# Controls when the workflow will run
 on:
   push:
     tags:
       - '*'
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-  
+
 permissions:
   contents: write
-  
-jobs:
-  release:
-    strategy:
-      matrix:
-        target: [win32-x64, win32-arm64, linux-x64, linux-arm64, darwin-x64, darwin-arm64]
-    
-    runs-on: ubuntu-latest
 
+jobs:
+  # Stage 1: Build TypeScript once
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
 
-      - name: Install the dependencies
-        run: npm i
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run vscode:prepublish
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            dist/
+            out/
+            package.json
+            package.nls.json
+            package.nls.zh-CN.json
+            README.md
+            CHANGELOG.md
+            LICENSE
+            syntaxes/
+            doc/
+          retention-days: 1
+
+  # Stage 2: Package for each platform
+  package:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - target: win32-x64
+            pasls_dir: pasls-x86_64-win64
+          - target: win32-arm64
+            pasls_dir: pasls-x86_64-win64
+          - target: linux-x64
+            pasls_dir: pasls-x86_64-linux
+          - target: linux-arm64
+            pasls_dir: pasls-aarch64-linux
+          - target: darwin-x64
+            pasls_dir: pasls-x86_64-darwin
+          - target: darwin-arm64
+            pasls_dir: pasls-aarch64-darwin
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            bin
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       - name: Install @vscode/vsce
         run: npm i -g @vscode/vsce
 
-      - name: Prepare Binaries for ${{ matrix.target }}
-        shell: bash
+      - name: Prepare Platform Binary
         run: |
-          case "${{ matrix.target }}" in
-            win32-x64)     KEEP="pasls-x86_64-win64" ;;
-            win32-arm64)   KEEP="pasls-x86_64-win64" ;;
-            linux-x64)     KEEP="pasls-x86_64-linux" ;;
-            linux-arm64)   KEEP="pasls-aarch64-linux" ;;
-            darwin-x64)    KEEP="pasls-x86_64-darwin" ;;
-            darwin-arm64)  KEEP="pasls-aarch64-darwin" ;;
-            *)             echo "Unknown target"; exit 1 ;;
-          esac
-          
-          echo "Keeping only bin/$KEEP and common files..."
-          # Delete all other architecture subdirectories in bin/
-          find bin -mindepth 1 -maxdepth 1 -type d ! -name "$KEEP" ! -name "debug" -exec rm -rf {} +
-
-      - name: Build and Bundle
-        run: npm run vscode:prepublish
+          # Keep only the required platform binary
+          cd bin
+          find . -mindepth 1 -maxdepth 1 -type d ! -name "${{ matrix.pasls_dir }}" ! -name "debug" -exec rm -rf {} +
+          ls -la
 
       - name: Package Extension
         id: asset
-        shell: bash
         run: |
           vsce package --target ${{ matrix.target }}
           echo "vsix_path=$(ls *.vsix)" >> $GITHUB_OUTPUT
@@ -77,4 +112,3 @@ jobs:
       - name: Publish to Marketplace
         if: startsWith(github.ref, 'refs/tags/')
         run: vsce publish -p ${{ secrets.VSCE_PAT }} --target ${{ matrix.target }}
-

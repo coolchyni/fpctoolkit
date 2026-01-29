@@ -1,5 +1,9 @@
 ## [Unreleased]
 ##
+## [1.2.6] - 2026-01-29
+- fix: windows pasls can't run
+- add macOS Gatekeeper bypass for the language server executable.
+
 ## [1.2.5] - 2026-01-23
 - support win32-arm64 
 
