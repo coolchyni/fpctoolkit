@@ -457,6 +457,15 @@ export class TLangClient implements ErrorHandler  {
             } catch (e) {
                 logger.appendLine(`Warning: Failed to set permissions on ${executable}: ${e}`);
             }
+
+            // On macOS, remove quarantine attribute to bypass Gatekeeper
+            if (process.platform === 'darwin') {
+                try {
+                    cp.execSync(`xattr -cr "${executable}"`, { stdio: 'ignore' });
+                } catch (e) {
+                    // Ignore errors - xattr may fail if no quarantine attribute exists
+                }
+            }
         }
         // TODO: download the executable for the active platform
         // https://github.com/genericptr/pascal-language-server/releases/download/x86_64-darwin/pasls
