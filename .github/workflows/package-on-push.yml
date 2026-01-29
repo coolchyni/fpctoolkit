@@ -31,11 +31,11 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.target }}" in
-            win32-x64)     KEEP="win32" ;;
-            linux-x64)     KEEP="x86_64-linux" ;;
-            linux-arm64)   KEEP="aarch64-linux" ;;
-            darwin-x64)    KEEP="x86_64-darwin" ;;
-            darwin-arm64)  KEEP="x86_64-darwin" ;;
+            win32-x64)     KEEP="pasls-x86_64-win64" ;;
+            linux-x64)     KEEP="pasls-x86_64-linux" ;;
+            linux-arm64)   KEEP="pasls-aarch64-linux" ;;
+            darwin-x64)    KEEP="pasls-x86_64-darwin" ;;
+            darwin-arm64)  KEEP="pasls-aarch64-darwin" ;;
             *)             echo "Unknown target"; exit 1 ;;
           esac
           find bin -mindepth 1 -maxdepth 1 -type d ! -name "$KEEP" ! -name "debug" -exec rm -rf {} +
