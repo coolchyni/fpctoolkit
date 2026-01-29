@@ -12,44 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  # Stage 1: Build TypeScript once
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build TypeScript
-        run: npm run vscode:prepublish
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            dist/
-            out/
-            package.json
-            package.nls.json
-            package.nls.zh-CN.json
-            README.md
-            CHANGELOG.md
-            LICENSE
-            syntaxes/
-            doc/
-          retention-days: 1
-
-  # Stage 2: Package for each platform
-  package:
-    needs: build
+  release:
     strategy:
       matrix:
         include:
@@ -69,31 +32,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            bin
-          sparse-checkout-cone-mode: false
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev
+
+      - name: Install Dependencies
+        run: npm ci
 
       - name: Install @vscode/vsce
         run: npm i -g @vscode/vsce
 
       - name: Prepare Platform Binary
         run: |
-          # Keep only the required platform binary
           cd bin
           find . -mindepth 1 -maxdepth 1 -type d ! -name "${{ matrix.pasls_dir }}" ! -name "debug" -exec rm -rf {} +
-          ls -la
 
-      - name: Package Extension
+      - name: Build and Package
         id: asset
         run: |
           vsce package --target ${{ matrix.target }}
