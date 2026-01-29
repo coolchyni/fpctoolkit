@@ -270,14 +270,14 @@ export class TLangClient implements ErrorHandler  {
      
         if (arch === 'x64') {
             this.targetCPU = 'x86_64';
-            if (plat === 'win32') {            // 检查是否有调试器附加
-                extensionProcessName = 'win32/pasls.exe';
+            if (plat === 'win32') {            
+                extensionProcessName = 'pasls-x86_64-win64/pasls.exe';
                 this.targetOS = 'win64';
             } else if (plat === 'linux') {
-                extensionProcessName = 'x86_64-linux/pasls';
+                extensionProcessName = 'pasls-x86_64-linux/pasls';
                 this.targetOS = 'linux';
             } else if (plat == 'darwin') {
-                extensionProcessName = 'x86_64-darwin/pasls';
+                extensionProcessName = 'pasls-x86_64-darwin/pasls';
                 this.targetOS = 'darwin';
             }
             else {
@@ -286,15 +286,15 @@ export class TLangClient implements ErrorHandler  {
         } else if (arch === 'arm64') {
             this.targetCPU = 'aarch64';
             if (plat === 'linux') {
-                extensionProcessName = 'aarch64-linux/pasls';
+                extensionProcessName = 'pasls-aarch64-linux/pasls';
                 this.targetOS = 'linux';
             } else if (plat == 'darwin') {
-                extensionProcessName = 'x86_64-darwin/pasls';
+                extensionProcessName = 'pasls-aarch64-darwin/pasls';
                 this.targetOS = 'darwin';
             }
             else if (plat == 'win32') {
-                this.targetOS = 'win32';
-                extensionProcessName = 'win32/pasls.exe';
+                this.targetOS = 'win64';
+                extensionProcessName = 'pasls-x86_64-win64/pasls.exe';
             } else {
                 throw "Invalid Platform";
             }
